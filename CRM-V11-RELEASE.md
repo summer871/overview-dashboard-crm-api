@@ -9,3 +9,7 @@ The catalog test surfaced a response difference. The existing unfiltered product
 The synchronized source carries forward all 96 files from the newer editor baseline. The existing live web URL continues serving version 52 by Summer's decision. No dashboard cache or workbook refresh ran, and no BigQuery query was submitted.
 
 [Passing read-only comparison source](https://github.com/summer871/mt-api-tests-crm-api/commit/ebcde3e621252aa613d7edf72343a1ad1fd892eb)
+
+## Cache follow-up
+
+The current Apps Script HEAD and GitHub source include the v6.683 memory fix. The live cache refresh completed in 6m 14s, validated all 2,730 November CRM cases, and published a browser cache with 135,403 rows. The public web app still serves version 52. [Memory fix](https://github.com/summer871/overview-dashboard-crm-api/commit/e5247353d1eb97767d91590cac84f3a0d1e354db) · [Current CRM rollout audit](https://github.com/summer871/magictouch-crm-client/blob/55408fa30ad1f6c6c3c4609408aaa2db8adac858/docs/consumer-rollout-audit.md)
