@@ -3172,7 +3172,7 @@ function logRemakeFactorRunSummary(functionName, result) {
 }
 
 function refreshRemakeFactorDailyCache() {
-  return getRemakeFactorData({
+  const status = refreshRemakeFactorMissingThenCurrentV123({
     forceRefresh: true,
     quickRefresh: true,
     incrementalRefresh: true,
@@ -3184,7 +3184,17 @@ function refreshRemakeFactorDailyCache() {
     maxDetailFetches: 160,
     fetchProductMap: true,
     chunkByMonth: true
-  });
+  }, false);
+  if (!status.ok) {
+    throw new Error('Remake Factor source refresh failed: ' + JSON.stringify(status.errorsThisRun));
+  }
+
+  const result = scheduleBrowserReadyRebuildForSuccessfulRefreshV1331(status);
+  if (!result.stats.browserReadyRebuildScheduled) {
+    throw new Error('Remake Factor browser cache rebuild was not queued: ' +
+      (result.stats.browserReadyRebuildScheduleError || 'no trigger confirmation'));
+  }
+  return result;
 }
 
 function installRemakeFactorDailyTrigger() {
@@ -4481,7 +4491,7 @@ function rebuildRemakeFactorOneMonthToShardV123(monthKey, options) {
   return summarizeRemakeFactorChunkResultV120(monthKey, result);
 }
 
-function refreshRemakeFactorMissingThenCurrentV123(options) {
+function refreshRemakeFactorMissingThenCurrentV123(options, includeDashboardPayload = true) {
   const opts = options || {};
   const props = PropertiesService.getScriptProperties();
   const startedMs = Date.now();
@@ -4562,6 +4572,10 @@ function refreshRemakeFactorMissingThenCurrentV123(options) {
     generatedAt: new Date().toISOString()
   };
   Logger.log(JSON.stringify(response, null, 2));
+
+  // The scheduled job only needs the write receipt. Let the separate browser
+  // worker pack the saved shards without loading them into this execution.
+  if (!includeDashboardPayload) return response;
 
   // The web dashboard expects a normal dashboard payload with detailRows. After
   // the smart refresh updates Drive shards, return the saved cache payload so
