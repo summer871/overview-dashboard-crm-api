@@ -1,0 +1,164 @@
+<!-- SharedDashboardDecoratorV6548.html
+Version: v6.558
+Date: 2026-07-30
+Purpose: Decorate existing dashboard cards with shared controls and identity while respecting native title interactions.
+-->
+<script id="cdaSharedDashboardDecoratorControllerV6548">
+(function installSharedDashboardDecoratorV6548(){
+  'use strict';
+
+  if (window.cdaDashboardDecoratorV6548 &&
+      window.cdaDashboardDecoratorV6548.version === 'v6.558') return;
+
+  const platform = window.cdaDashboardPlatformV6547;
+  const toolbar = window.cdaDashboardToolbarV6548;
+  if (!platform || !toolbar) throw new Error('Registry and toolbar must load before decorator.');
+
+  function normalizeText(value){
+    return String(value == null ? '' : value).replace(/\s+/g,' ').trim().toLowerCase();
+  }
+
+  function titleCard(page,component){
+    if (!page || !component || !component.title) return null;
+    const wanted = normalizeText(component.title);
+    return Array.from(page.querySelectorAll('.remakeCard,article')).find(function(card){
+      const title = card.querySelector('.remakeCardTitle,.tatCardTitleV6509');
+      return title && normalizeText(title.textContent) === wanted;
+    }) || null;
+  }
+
+  function resolveCard(tab,component,page){
+    const catalog = window.cdaDashboardCatalogV6555;
+    if (catalog) {
+      const resolved = catalog.resolveCard(tab.key,component.key);
+      if (resolved) return resolved;
+    }
+    if (typeof component.resolveCard === 'function') {
+      const custom = component.resolveCard({tab:tab,component:component,page:page});
+      if (custom) return custom;
+    }
+    if (component.cardId) {
+      const byId = document.getElementById(component.cardId);
+      if (byId) return byId;
+    }
+    const target = component.targetId && document.getElementById(component.targetId);
+    if (target && target.closest) {
+      const byTarget = target.closest('.remakeCard,article');
+      if (byTarget) return byTarget;
+    }
+    return titleCard(page,component);
+  }
+
+  function componentState(tab,component,page){
+    const card = resolveCard(tab,component,page);
+    const header = card && card.querySelector
+      ? card.querySelector('.remakeCardHeader,.tatCardHeadV6509')
+      : null;
+    const toolbarCount = card && card.querySelectorAll
+      ? card.querySelectorAll('.cdaDashboardToolbarV6547[data-cda-dashboard-toolbar="' + component.key + '"]').length
+      : 0;
+    const decoratedCount = page
+      ? page.querySelectorAll('[data-cda-dashboard-decorated-component="' + component.key + '"]').length
+      : 0;
+    return {
+      key:component.key,
+      title:component.title,
+      cardPresent:!!card,
+      headerPresent:!!header,
+      toolbarCount:toolbarCount,
+      decoratedCount:decoratedCount,
+      decorated:!!card && !!header && toolbarCount === 1 && decoratedCount === 1
+    };
+  }
+
+  function decorate(tabKey){
+    const validation = platform.validateTab(tabKey);
+    if (!validation.ok) throw new Error(validation.errors.join('\n'));
+    const tab = platform.getTab(tabKey);
+    if (!tab || tab.mountMode !== 'decorate') throw new Error('Tab is not decorate-mode: ' + tabKey);
+    const page = document.getElementById(tab.pageId);
+    if (!page) return null;
+
+    let mounted = 0;
+    tab.components.forEach(function(component){
+      const card = resolveCard(tab,component,page);
+      if (!card) return;
+      const catalog = window.cdaDashboardCatalogV6555;
+      if (catalog) catalog.stamp(tab,component,card);
+      if (tab.adapter && typeof tab.adapter.prepareComponent === 'function') {
+        tab.adapter.prepareComponent({tab:tab,component:component,card:card});
+      }
+      const header = card.querySelector('.remakeCardHeader,.tatCardHeadV6509');
+      if (!header) return;
+      let host = tab.adapter && typeof tab.adapter.resolveToolbarHost === 'function'
+        ? tab.adapter.resolveToolbarHost({tab:tab,component:component,card:card,header:header})
+        : header.querySelector('.remakeCardActionsV6230');
+      if (!host) {
+        host = document.createElement('div');
+        host.className = 'remakeCardActionsV6230 cdaDashboardDecoratedActionsV6548';
+        header.appendChild(host);
+      }
+      const mountedToolbar = toolbar.mount(tab.key,component.key,host);
+      if (!mountedToolbar) return;
+
+      const titleToggle = window.cdaDashboardTitleToggleV6555;
+      const nativeTitle = !!(tab.adapter && tab.adapter.nativeTitleToggle);
+      if (titleToggle && !nativeTitle) titleToggle.mount(tab.key,component.key,card);
+
+      mounted += 1;
+      card.setAttribute('data-cda-dashboard-decorated-component',component.key);
+    });
+
+    page.setAttribute('data-cda-dashboard-decorated-tab',tab.key);
+    if (tab.adapter && typeof tab.adapter.afterDecorate === 'function') {
+      tab.adapter.afterDecorate({tab:tab,page:page,mounted:mounted});
+    }
+    platform.util.emit('cdaDashboardTabDecoratedV6548',{tabKey:tab.key,mounted:mounted});
+    return page;
+  }
+
+  function duplicateIds(root){
+    const seen = new Set();
+    const duplicates = new Set();
+    if (!root) return [];
+    root.querySelectorAll('[id]').forEach(function(node){
+      if (seen.has(node.id)) duplicates.add(node.id); else seen.add(node.id);
+    });
+    return Array.from(duplicates).sort();
+  }
+
+  function audit(tabKey){
+    const tab = platform.getTab(tabKey);
+    const validation = platform.validateTab(tabKey);
+    const page = tab ? document.getElementById(tab.pageId) : null;
+    const duplicates = duplicateIds(page);
+    const states = tab ? tab.components.map(function(component){
+      return componentState(tab,component,page);
+    }) : [];
+    const missing = states.filter(function(state){ return !state.decorated; });
+    const toolbars = page ? Array.from(page.querySelectorAll('.cdaDashboardToolbarV6547')) : [];
+    return {
+      version:'v6.558',
+      tabKey:tabKey,
+      mountMode:'decorate',
+      validation:validation,
+      pagePresent:!!page,
+      toolbarCount:toolbars.length,
+      expectedToolbarCount:tab ? tab.components.length : 0,
+      componentStates:states,
+      missingComponents:missing.map(function(state){ return state.key; }),
+      allComponentsDecorated:!!tab && states.length === tab.components.length && missing.length === 0,
+      noDuplicateIds:duplicates.length === 0,
+      duplicateIds:duplicates
+    };
+  }
+
+  window.cdaDashboardDecoratorV6548 = Object.freeze({
+    version:'v6.558',
+    decorate:decorate,
+    audit:audit,
+    resolveCard:resolveCard,
+    componentState:componentState
+  });
+})();
+</script>

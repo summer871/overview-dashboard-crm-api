@@ -1,0 +1,98 @@
+<script>
+window.CDA_REMAKE_LAYOUT_REFRESH_VERSION = 'v6.408';
+(function installRemakePageReloadAndSectionsV6402(){
+  'use strict';
+
+  if (window.__cdaRemakePageReloadSectionsV6402) return;
+  window.__cdaRemakePageReloadSectionsV6402 = true;
+
+  const SCROLL_STORAGE_KEY_V6402 = 'cdaRemakePageOnlyReloadScroll.v6402';
+  function restoreScrollAfterPageReloadV6402(){
+    try {
+      const saved = JSON.parse(localStorage.getItem(SCROLL_STORAGE_KEY_V6402) || 'null');
+      localStorage.removeItem(SCROLL_STORAGE_KEY_V6402);
+      if (!saved || !Number.isFinite(Number(saved.y)) || Date.now() - Number(saved.at || 0) > 10 * 60 * 1000) return;
+      window.setTimeout(function(){ window.scrollTo(0, Math.max(0, Number(saved.y))); }, 250);
+      window.setTimeout(function(){ window.scrollTo(0, Math.max(0, Number(saved.y))); }, 1100);
+    } catch (error) {}
+  }
+
+  function findVisibleWebAppUrlV6402(){
+    const candidates = [];
+    try {
+      const config = window.CDA_FINAL_PRESENTATION_CONFIG;
+      if (config && Array.isArray(config.locationSources)) candidates.push.apply(candidates, config.locationSources);
+    } catch (error) {}
+    try { candidates.push(document.referrer); } catch (error) {}
+    try { candidates.push(window.location.href); } catch (error) {}
+
+    for (let index = 0; index < candidates.length; index += 1) {
+      const candidate = String(candidates[index] || '').trim();
+      if (!candidate) continue;
+      try {
+        const url = new URL(candidate, window.location.href);
+        if (/^https:\/\/script\.google\.com$/i.test(url.origin) && /\/macros\/s\/.+\/(?:exec|dev)\/?$/i.test(url.pathname)) return url;
+      } catch (error) {}
+    }
+    return null;
+  }
+
+  let remakeMetaLastCheckedAtV6409 = 0;
+  let remakeAutoSyncTimerV6409 = 0;
+  const REMAKE_AUTO_SYNC_INTERVAL_MS_V6409 = 2 * 60 * 60 * 1000;
+  const REMAKE_FOCUS_SYNC_MIN_AGE_MS_V6409 = 10 * 60 * 1000;
+
+  function performRemakeAutomaticCacheSyncV6409(reason) {
+    if (typeof window.checkRemakeFactorServerMetaV6409 !== 'function') return Promise.resolve(false);
+    remakeMetaLastCheckedAtV6409 = Date.now();
+    return window.checkRemakeFactorServerMetaV6409({ force: true, reason: reason || 'scheduled' });
+  }
+
+  // Backward-compatible name retained for any old bookmark/debug code, but the
+  // behavior is now a cache-token synchronization rather than a page-only reload.
+  window.performRemakePageOnlyReloadV6402 = function performRemakePageOnlyReloadV6402() {
+    return performRemakeAutomaticCacheSyncV6409('legacy-manual-call');
+  };
+  window.performRemakeAutomaticCacheSyncV6409 = performRemakeAutomaticCacheSyncV6409;
+  window.CDA_REMAKE_PAGE_ONLY_RELOAD = {
+    version: 'v6.412',
+    intervalHours: 2,
+    rebuildsCache: false,
+    reloadsSavedCache: true,
+    refreshesApi: false,
+    behavior: 'show browser data immediately, use only optimized cache automatically, and rebuild/poll without automatic monthly-shard fallback'
+  };
+  window.CDA_REMAKE_AUTO_SYNC = window.CDA_REMAKE_PAGE_ONLY_RELOAD;
+
+  function installPageReloadTimerV6402(){
+    if (window.__cdaRemakePageReloadTimerV6402) window.clearTimeout(window.__cdaRemakePageReloadTimerV6402);
+    if (remakeAutoSyncTimerV6409) window.clearInterval(remakeAutoSyncTimerV6409);
+    remakeAutoSyncTimerV6409 = window.setInterval(function scheduledRemakeCacheSyncV6409(){
+      performRemakeAutomaticCacheSyncV6409('two-hour');
+    }, REMAKE_AUTO_SYNC_INTERVAL_MS_V6409);
+    window.__cdaRemakePageReloadTimerV6402 = window.setTimeout(function initialRemakeCacheSyncV6409(){
+      performRemakeAutomaticCacheSyncV6409('startup-safety');
+    }, 90 * 1000);
+  }
+
+  function installRemakeFocusSyncV6409(){
+    if (window.__cdaRemakeFocusSyncInstalledV6409) return;
+    window.__cdaRemakeFocusSyncInstalledV6409 = true;
+    const checkAfterReturn = function checkRemakeCacheAfterReturnV6409(){
+      if (document.visibilityState && document.visibilityState !== 'visible') return;
+      if (Date.now() - remakeMetaLastCheckedAtV6409 < REMAKE_FOCUS_SYNC_MIN_AGE_MS_V6409) return;
+      performRemakeAutomaticCacheSyncV6409('focus');
+    };
+    document.addEventListener('visibilitychange', checkAfterReturn);
+    window.addEventListener('focus', checkAfterReturn);
+  }
+
+  function startV6402(){
+    restoreScrollAfterPageReloadV6402();
+    installPageReloadTimerV6402();
+    installRemakeFocusSyncV6409();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startV6402, { once: true });
+  else startV6402();
+})();
+</script>

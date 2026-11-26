@@ -1,0 +1,1078 @@
+<!-- SharedTableModule.html v6.628
+
+THE TAB TEMPLATE. Read this before building any new dashboard tab.
+
+This module owns table rendering and behavior for every dashboard table. A tab
+registers columns once and supplies rows whenever data changes. The module owns
+headers, bodies, sorting, column visibility, selection, selected-row pinning,
+child rows, totals, CSV export, and the shared column chooser.
+
+The functional base is the complete v6.540 module. v6.543 adds a stable table
+frame/tools row and retains the complete public API and compatibility aliases.
+SharedTableStyles.html remains the visual owner.
+-->
+<style id="cdaSharedTableModuleStylesV6540">
+  /* Structural and visual rules are owned by SharedTableStyles.html. */
+</style>
+<script id="cdaSharedTableModuleControllerV6540">
+(function installCdaSharedTableModuleV6540(){
+  'use strict';
+
+  var MODULE_VERSION_V6540 = '6.628';
+  var SORT_STORE_V6540 = 'cdaTableSortsV6539';
+  var COLS_STORE_V6540 = 'cdaTableHiddenColumnsV6539';
+
+  var registryV6540 = {};
+  var sortsV6540 = readJsonV6540(SORT_STORE_V6540, {});
+  var hiddenV6540 = readJsonV6540(COLS_STORE_V6540, {});
+
+  function readJsonV6540(key, fallback){
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : fallback;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function writeJsonV6540(key, value){
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {}
+  }
+
+  function escV6540(value){
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function numV6540(value){
+    var number = Number(value);
+    return isFinite(number) ? number : 0;
+  }
+
+  function fixedV6540(value, decimals){
+    var places = decimals == null ? 0 : Number(decimals);
+    return numV6540(value).toLocaleString(undefined, {
+      minimumFractionDigits: places,
+      maximumFractionDigits: places
+    });
+  }
+
+  var FORMATTERS_V6540 = {
+    text: function(value){ return value == null ? '' : String(value); },
+    count: function(value){ return fixedV6540(value, 0); },
+    number: function(value, row, column){
+      return fixedV6540(value, column && column.decimals != null ? column.decimals : 0);
+    },
+    decimal: function(value, row, column){
+      return fixedV6540(value, column && column.decimals != null ? column.decimals : 1);
+    },
+    days: function(value, row, column){
+      return fixedV6540(value, column && column.decimals != null ? column.decimals : 1);
+    },
+    percent: function(value, row, column){
+      var places = column && column.decimals != null ? column.decimals : 1;
+      return fixedV6540(numV6540(value) * 100, places) + '%';
+    },
+    percent100: function(value, row, column){
+      var places = column && column.decimals != null ? column.decimals : 1;
+      return fixedV6540(value, places) + '%';
+    },
+    currency: function(value, row, column){
+      var places = column && column.decimals != null ? column.decimals : 0;
+      var number = numV6540(value);
+      return (number < 0 ? '-$' : '$') + fixedV6540(Math.abs(number), places);
+    }
+  };
+
+  var NUMERIC_TYPES_V6540 = {
+    count: true,
+    number: true,
+    decimal: true,
+    days: true,
+    percent: true,
+    percent100: true,
+    currency: true
+  };
+
+  function columnTypeV6540(column){
+    return column && column.type ? String(column.type) : 'text';
+  }
+
+  function isNumericV6540(column){
+    if (column && column.numeric != null) return !!column.numeric;
+    return !!NUMERIC_TYPES_V6540[columnTypeV6540(column)];
+  }
+
+  function rawValueV6540(row, column){
+    if (!column || !row) return '';
+    if (typeof column.value === 'function') return column.value(row, column);
+    return row[column.field];
+  }
+
+  function formatCellV6540(row, column){
+    var value = rawValueV6540(row, column);
+    if (typeof column.format === 'function') return column.format(value, row, column);
+    var formatter = FORMATTERS_V6540[columnTypeV6540(column)] || FORMATTERS_V6540.text;
+    return formatter(value, row, column);
+  }
+
+  function normalizeColumnV6540(column, index){
+    var copy = Object.assign({}, column);
+    copy.field = String(copy.field != null ? copy.field : ('col' + index));
+    copy.label = copy.label != null ? copy.label : copy.field;
+    copy.title = copy.title || copy.label;
+    copy.sortable = copy.sortable !== false;
+    copy.hideable = index > 0 && copy.hideable !== false;
+    copy.numeric = isNumericV6540(copy);
+    return copy;
+  }
+
+  function normalizeConfigV6540(config){
+    var cfg = Object.assign({}, config);
+    cfg.key = String(cfg.key);
+    cfg.tableId = String(cfg.tableId || '');
+    cfg.columns = (cfg.columns || []).map(normalizeColumnV6540);
+    cfg.limit = cfg.limit == null ? 500 : Number(cfg.limit);
+    cfg.emptyText = cfg.emptyText || 'No matching rows.';
+    cfg.rowKey = typeof cfg.rowKey === 'function' ? cfg.rowKey : function(row){
+      return row && row.key != null ? row.key : (row && row.label);
+    };
+    cfg.selectable = cfg.selectable !== false;
+    cfg.multiSelect = cfg.multiSelect !== false;
+    cfg.manageSelection = cfg.manageSelection !== false;
+    cfg.totalsRow = cfg.totalsRow === true;
+    cfg.totalsLabel = cfg.totalsLabel || 'Total';
+    cfg.rows = cfg.rows || [];
+    cfg.viewRows = [];
+    cfg.selection = new Set();
+    cfg.bound = false;
+    if (cfg.defaultSort && !sortsV6540[cfg.key]) {
+      sortsV6540[cfg.key] = {
+        field: cfg.defaultSort.field,
+        dir: cfg.defaultSort.dir || 'desc'
+      };
+    }
+    return cfg;
+  }
+
+  function resolveTableV6540(cfg){
+    if (!cfg) return null;
+    if (cfg.$table && cfg.$table.isConnected) return cfg.$table;
+    if (!cfg.tableId) return null;
+    var node = document.getElementById(cfg.tableId);
+    if (!node) return null;
+    if (node.tagName === 'TABLE') {
+      cfg.$table = node;
+      cfg.bodyIdV6540 = '';
+      return node;
+    }
+    var table = node.closest ? node.closest('table') : null;
+    if (!table) return null;
+    cfg.$table = table;
+    cfg.bodyIdV6540 = node.id || '';
+    return table;
+  }
+
+  function directChildByClassV6543(parent, className){
+    if (!parent) return null;
+    var children = parent.children || [];
+    for (var index = 0; index < children.length; index += 1) {
+      if (children[index].classList && children[index].classList.contains(className)) {
+        return children[index];
+      }
+    }
+    return null;
+  }
+
+  function ensureTableFrameV6543(cfg, table){
+    if (!cfg || !table || !table.parentNode) return null;
+    var frame = table.parentNode.classList
+      && table.parentNode.classList.contains('cdaTableFrameV6542')
+      ? table.parentNode
+      : null;
+
+    if (!frame) {
+      frame = document.createElement('div');
+      frame.className = 'cdaTableFrameV6542';
+      table.parentNode.insertBefore(frame, table);
+      frame.appendChild(table);
+    }
+
+    frame.setAttribute('data-cda-table-key', cfg.key);
+    var tools = directChildByClassV6543(frame, 'cdaTableToolsV6542');
+    if (!tools) {
+      tools = document.createElement('div');
+      tools.className = 'cdaTableToolsV6542';
+      tools.setAttribute('data-cda-table-tools', cfg.key);
+      frame.insertBefore(tools, table);
+    }
+
+    cfg.$frameV6543 = frame;
+    cfg.$toolsV6543 = tools;
+    return frame;
+  }
+
+  function hasConfiguredWidthsV6543(cfg){
+    return !!(cfg && cfg.columns && cfg.columns.some(function(column){
+      return !!(column && column.width);
+    }));
+  }
+
+  function activeSortV6540(cfg){
+    var stored = sortsV6540[cfg.key];
+    if (stored && stored.field) return stored;
+    if (cfg.defaultSort) return cfg.defaultSort;
+    var first = cfg.columns.filter(function(column){ return column.sortable; })[0];
+    return first ? { field: first.field, dir: first.numeric ? 'desc' : 'asc' } : null;
+  }
+
+  function columnByFieldV6540(cfg, field){
+    for (var index = 0; index < cfg.columns.length; index += 1) {
+      if (cfg.columns[index].field === field) return cfg.columns[index];
+    }
+    return null;
+  }
+
+  function sortValueV6540(row, column){
+    if (!column) return '';
+    if (typeof column.sortValue === 'function') return column.sortValue(row, column);
+    var value = rawValueV6540(row, column);
+    if (column.numeric) return numV6540(value);
+    return String(value == null ? '' : value).toLowerCase();
+  }
+
+  function labelValueV6540(cfg, row){
+    var first = cfg.columns[0];
+    var value = first ? rawValueV6540(row, first) : '';
+    return String(value == null ? cfg.rowKey(row) : value);
+  }
+
+  function sortRowsV6540(cfg, rows){
+    var sort = activeSortV6540(cfg);
+    if (!sort) return (rows || []).slice();
+    var column = columnByFieldV6540(cfg, sort.field);
+    if (!column) return (rows || []).slice();
+    var direction = sort.dir === 'asc' ? 1 : -1;
+    return (rows || []).slice().sort(function(a, b){
+      var av = sortValueV6540(a, column);
+      var bv = sortValueV6540(b, column);
+      if (typeof av === 'string' || typeof bv === 'string') {
+        return String(av).localeCompare(String(bv), undefined, {
+          numeric: true,
+          sensitivity: 'base'
+        }) * direction;
+      }
+      if (av !== bv) return (av - bv) * direction;
+      return labelValueV6540(cfg, a).localeCompare(labelValueV6540(cfg, b), undefined, {
+        numeric: true,
+        sensitivity: 'base'
+      });
+    });
+  }
+
+  function pinSelectedFirstV6540(cfg, rows){
+    var source = (rows || []).slice();
+    var order = Array.from(cfg.selection).map(String);
+    var limit = cfg.limit || source.length;
+    if (!order.length) return source.slice(0, limit);
+    var rank = new Map(order.map(function(value, index){ return [value, index]; }));
+    var pinned = [];
+    var rest = [];
+    source.forEach(function(row){
+      if (rank.has(String(cfg.rowKey(row)))) pinned.push(row);
+      else rest.push(row);
+    });
+    pinned.sort(function(a, b){
+      return Number(rank.get(String(cfg.rowKey(a))))
+        - Number(rank.get(String(cfg.rowKey(b))));
+    });
+    return pinned.concat(rest).slice(0, Math.max(limit, pinned.length));
+  }
+
+  function applyPinningV6540(table){
+    if (!table) return;
+    var selectedRows = Array.prototype.slice.call(
+      table.querySelectorAll('tbody tr.selectedV6230')
+    );
+    selectedRows.forEach(function(row){ row.classList.add('selectedPinnedV6311'); });
+    if (!selectedRows.length) return;
+    var measure = function(){
+      var header = table.querySelector('thead');
+      var top = header ? Math.max(0, header.getBoundingClientRect().height) : 34;
+      selectedRows.forEach(function(row){
+        row.style.setProperty('--remake-selected-pin-top-v6311', top + 'px');
+        top += Math.max(1, row.getBoundingClientRect().height);
+      });
+    };
+    if (window.requestAnimationFrame) window.requestAnimationFrame(measure);
+    else measure();
+  }
+
+  function hiddenSetV6540(cfg){
+    var list = hiddenV6540[cfg.key] || [];
+    return new Set(list.map(String));
+  }
+
+  function visibleColumnsV6540(cfg){
+    var hidden = hiddenSetV6540(cfg);
+    return cfg.columns.filter(function(column, index){
+      if (index === 0) return true;
+      if (!column.hideable) return true;
+      return !hidden.has(column.field);
+    });
+  }
+
+  function headerHtmlV6540(cfg, columns){
+    var sort = activeSortV6540(cfg) || {};
+    var cells = columns.map(function(column){
+      var classes = [];
+      if (column.sortable) classes.push('sortableV6230');
+      if (column.numeric) classes.push('num');
+      if (column.headerClass) classes.push(column.headerClass);
+      var style = column.width
+        ? ' style="width:' + escV6540(column.width) + '"'
+        : '';
+      var glyph = '';
+      if (column.sortable && sort.field === column.field) {
+        glyph = sort.dir === 'asc' ? '&#9650;' : '&#9660;';
+      }
+      var click = column.sortable
+        ? ' onclick="cdaTableSortV6540(&quot;' + escV6540(cfg.key)
+          + '&quot;,&quot;' + escV6540(column.field) + '&quot;)"'
+        : '';
+      var title = column.sortable ? 'Sort by ' + column.title : column.title;
+      return '<th class="' + escV6540(classes.join(' ')) + '"'
+        + ' data-cda-field="' + escV6540(column.field) + '"'
+        + ' data-cda-column-role="' + escV6540(column.role === 'extended' ? 'extended' : 'standard') + '"'
+        + ' title="' + escV6540(title) + '"'
+        + ' aria-label="' + escV6540(title) + '"'
+        + style + click + '>'
+        + escV6540(column.label)
+        + (column.sortable
+          ? '<span class="sortGlyphV6230">' + glyph + '</span>'
+          : '')
+        + '</th>';
+    });
+    return '<thead><tr>' + cells.join('') + '</tr></thead>';
+  }
+
+  function cellHtmlV6540(row, column){
+    var classes = [];
+    if (column.numeric) classes.push('num');
+    if (column.cellClass) classes.push(column.cellClass);
+    var attr = classes.length
+      ? ' class="' + escV6540(classes.join(' ')) + '"'
+      : '';
+    var content = typeof column.html === 'function'
+      ? column.html(rawValueV6540(row, column), row, column)
+      : escV6540(formatCellV6540(row, column));
+    return '<td' + attr + '>' + content + '</td>';
+  }
+
+  function bodyHtmlV6540(cfg, columns, rows){
+    if (!rows.length) {
+      return '<tbody><tr><td class="cdaEmptyV6540" colspan="' + columns.length + '">'
+        + escV6540(cfg.emptyText) + '</td></tr></tbody>';
+    }
+    var anySelected = cfg.selection.size > 0;
+    var out = [];
+    rows.forEach(function(row){
+      var key = String(cfg.rowKey(row));
+      var selected = cfg.selection.has(key);
+      var classes = [];
+      if (cfg.selectable) classes.push('clickable');
+      if (selected) classes.push('selected', 'selectedV6230');
+      if (anySelected && !selected) classes.push('dimmedV6266');
+      if (typeof cfg.rowClass === 'function') {
+        var extra = cfg.rowClass(row);
+        if (extra) classes.push(extra);
+      }
+      out.push('<tr class="' + escV6540(classes.join(' '))
+        + '" data-cda-key="' + escV6540(key) + '">'
+        + columns.map(function(column){ return cellHtmlV6540(row, column); }).join('')
+        + '</tr>');
+
+      if (typeof cfg.childRows === 'function') {
+        var children = cfg.childRows(row, selected) || [];
+        children.forEach(function(child){
+          out.push('<tr class="cdaChildRowV6540 '
+            + escV6540(cfg.childRowClass || '') + '">'
+            + columns.map(function(column){ return cellHtmlV6540(child, column); }).join('')
+            + '</tr>');
+        });
+      }
+    });
+    return '<tbody>' + out.join('') + '</tbody>';
+  }
+
+  function totalValueV6540(cfg, column, rows){
+    var rule = column.total;
+    if (!rule) return null;
+    if (typeof rule === 'function') return rule(rows, column, cfg);
+    var values = rows.map(function(row){
+      return numV6540(rawValueV6540(row, column));
+    });
+    if (rule === 'sum') return values.reduce(function(a, b){ return a + b; }, 0);
+    if (rule === 'avg') {
+      return values.length
+        ? values.reduce(function(a, b){ return a + b; }, 0) / values.length
+        : 0;
+    }
+    if (rule === 'weightedAvg') {
+      var top = 0;
+      var bottom = 0;
+      rows.forEach(function(row){
+        var weight = column.weightBy ? numV6540(row[column.weightBy]) : 1;
+        top += numV6540(rawValueV6540(row, column)) * weight;
+        bottom += weight;
+      });
+      return bottom ? top / bottom : 0;
+    }
+    if (rule === 'ratio') {
+      var numerator = 0;
+      var denominator = 0;
+      rows.forEach(function(row){
+        numerator += numV6540(row[column.ratioNumerator]);
+        denominator += numV6540(row[column.ratioDenominator]);
+      });
+      return denominator ? numerator / denominator : 0;
+    }
+    return null;
+  }
+
+  function footHtmlV6540(cfg, columns, rows){
+    if (!cfg.totalsRow || !rows.length) return '';
+    var cells = columns.map(function(column, index){
+      var classes = [];
+      if (column.numeric) classes.push('num');
+      var attr = classes.length
+        ? ' class="' + escV6540(classes.join(' ')) + '"'
+        : '';
+      if (index === 0) {
+        return '<td' + attr + '>' + escV6540(cfg.totalsLabel) + '</td>';
+      }
+      var value = totalValueV6540(cfg, column, rows);
+      if (value == null) return '<td' + attr + '></td>';
+      var formatter = FORMATTERS_V6540[columnTypeV6540(column)]
+        || FORMATTERS_V6540.text;
+      var text = typeof column.format === 'function'
+        ? column.format(value, null, column)
+        : formatter(value, null, column);
+      return '<td' + attr + '>' + escV6540(text) + '</td>';
+    });
+    return '<tfoot data-cda-totals="1"><tr>' + cells.join('') + '</tr></tfoot>';
+  }
+
+  function columnSignatureV6628(columns){
+    return (columns || []).map(function(column){
+      return [
+        String(column && column.field || ''),
+        column && column.role === 'extended' ? 'extended' : 'standard',
+        column && column.numeric ? 'numeric' : 'text',
+        String(column && column.width || '')
+      ].join(':');
+    }).join('|');
+  }
+
+  function parseTableSectionsV6628(html){
+    var temporary = document.createElement('table');
+    temporary.innerHTML = html || '';
+    return {
+      head: temporary.tHead || null,
+      body: temporary.tBodies && temporary.tBodies[0] || null,
+      foot: temporary.tFoot || null
+    };
+  }
+
+  function removeExtraBodiesV6628(table, keep){
+    Array.prototype.slice.call(table.tBodies || []).forEach(function(body){
+      if (body !== keep && body.parentNode === table) body.remove();
+    });
+  }
+
+  function replaceAllSectionsV6628(table, sections){
+    if (table.tHead) table.tHead.remove();
+    Array.prototype.slice.call(table.tBodies || []).forEach(function(body){ body.remove(); });
+    if (table.tFoot) table.tFoot.remove();
+    if (sections.head) table.appendChild(sections.head);
+    if (sections.body) table.appendChild(sections.body);
+    if (sections.foot) table.appendChild(sections.foot);
+  }
+
+  function replaceRowsAndTotalsV6628(table, sections){
+    var body = table.tBodies && table.tBodies[0] || null;
+    if (body && sections.body) {
+      body.innerHTML = sections.body.innerHTML;
+      removeExtraBodiesV6628(table, body);
+    } else if (sections.body) {
+      table.insertBefore(sections.body, table.tFoot || null);
+      removeExtraBodiesV6628(table, sections.body);
+    } else {
+      Array.prototype.slice.call(table.tBodies || []).forEach(function(item){ item.remove(); });
+    }
+
+    var foot = table.tFoot || null;
+    if (foot && sections.foot) {
+      foot.innerHTML = sections.foot.innerHTML;
+    } else if (foot && !sections.foot) {
+      foot.remove();
+    } else if (!foot && sections.foot) {
+      table.appendChild(sections.foot);
+    }
+  }
+
+  function updateSortHeaderV6628(cfg, table){
+    var sort = activeSortV6540(cfg) || {};
+    Array.prototype.slice.call(table.querySelectorAll('thead th[data-cda-field]')).forEach(function(header){
+      var field = String(header.getAttribute('data-cda-field') || '');
+      var active = field && field === String(sort.field || '');
+      var glyph = header.querySelector('.sortGlyphV6230');
+      if (glyph) glyph.innerHTML = active ? (sort.dir === 'asc' ? '&#9650;' : '&#9660;') : '';
+      if (header.classList.contains('sortableV6230')) {
+        header.setAttribute('aria-sort', active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
+      } else {
+        header.removeAttribute('aria-sort');
+      }
+    });
+  }
+
+  function bindV6540(cfg, table){
+    if (cfg.bound || !table) return;
+    cfg.bound = true;
+    table.addEventListener('click', function(event){
+      var tr = event.target && event.target.closest
+        ? event.target.closest('tbody tr')
+        : null;
+      if (!tr || !tr.hasAttribute('data-cda-key')) return;
+      handleRowClickV6540(cfg, tr.getAttribute('data-cda-key'), event);
+    });
+  }
+
+  function handleRowClickV6540(cfg, key, event){
+    var row = null;
+    for (var index = 0; index < cfg.viewRows.length; index += 1) {
+      if (String(cfg.rowKey(cfg.viewRows[index])) === String(key)) {
+        row = cfg.viewRows[index];
+        break;
+      }
+    }
+    var additive = cfg.multiSelect
+      && !!(event && (event.metaKey || event.ctrlKey || event.shiftKey));
+
+    if (typeof cfg.onRowClick === 'function') {
+      if (cfg.onRowClick(row, key, event, additive) === false) return;
+    }
+    if (!cfg.selectable || !cfg.manageSelection) return;
+
+    if (additive) {
+      if (cfg.selection.has(key)) cfg.selection.delete(key);
+      else cfg.selection.add(key);
+    } else if (cfg.selection.size === 1 && cfg.selection.has(key)) {
+      cfg.selection.clear();
+    } else {
+      cfg.selection.clear();
+      cfg.selection.add(key);
+    }
+
+    renderV6540(cfg.key);
+    if (typeof cfg.onSelectionChange === 'function') {
+      cfg.onSelectionChange(
+        Array.from(cfg.selection),
+        cfg.filterKind || cfg.key,
+        cfg
+      );
+    }
+    emitV6540('cdaTableSelectionChanged', {
+      key: cfg.key,
+      selected: Array.from(cfg.selection)
+    });
+  }
+
+  function emitV6540(name, detail){
+    try {
+      document.dispatchEvent(new CustomEvent(name, { detail: detail }));
+    } catch (error) {}
+  }
+
+  function renderV6540(key){
+    var cfg = registryV6540[key];
+    if (!cfg) return;
+    var table = resolveTableV6540(cfg);
+    if (!table) return;
+
+    var frame = ensureTableFrameV6543(cfg, table);
+    table.setAttribute('data-cda-managed', 'v6543');
+    if (hasConfiguredWidthsV6543(cfg)) {
+      table.setAttribute('data-cda-fixed-layout', '1');
+    } else {
+      table.removeAttribute('data-cda-fixed-layout');
+    }
+
+    var columns = visibleColumnsV6540(cfg);
+    var rows = pinSelectedFirstV6540(cfg, sortRowsV6540(cfg, cfg.rows));
+
+    if (typeof cfg.beforeRender === 'function') {
+      var context = { cfg: cfg, rows: rows, columns: columns };
+      cfg.beforeRender(context);
+      rows = context.rows || rows;
+      columns = context.columns || columns;
+    }
+    cfg.viewRows = rows;
+
+    table.setAttribute('data-cda-table-key-v6628', cfg.key);
+    var columnSignature = columnSignatureV6628(columns);
+    var headerChanged = !table.tHead || cfg.renderedColumnSignatureV6628 !== columnSignature;
+    var sections = parseTableSectionsV6628(
+      (headerChanged ? headerHtmlV6540(cfg, columns) : '')
+        + bodyHtmlV6540(cfg, columns, rows)
+        + footHtmlV6540(cfg, columns, rows)
+    );
+
+    if (headerChanged) {
+      replaceAllSectionsV6628(table, sections);
+      cfg.renderedColumnSignatureV6628 = columnSignature;
+    } else {
+      replaceRowsAndTotalsV6628(table, sections);
+      updateSortHeaderV6628(cfg, table);
+    }
+
+    if (cfg.bodyIdV6540) {
+      var newBody = table.tBodies && table.tBodies[0];
+      if (newBody) newBody.id = cfg.bodyIdV6540;
+    }
+    bindV6540(cfg, table);
+    applyPinningV6540(table);
+    ensureChooserButtonV6543(cfg, frame);
+
+    if (typeof cfg.afterRender === 'function') cfg.afterRender(table, cfg);
+    emitV6540('cdaTableRendered', {
+      key: cfg.key,
+      tableId: cfg.tableId,
+      rows: rows.length,
+      headerChanged: headerChanged,
+      columnSignature: columnSignature,
+      stableHeaderV6628: true
+    });
+  }
+
+  function csvCellV6540(value){
+    var text = String(value == null ? '' : value);
+    var needsQuotes = text.indexOf('"') >= 0
+      || text.indexOf(',') >= 0
+      || text.indexOf('\n') >= 0
+      || text.indexOf('\r') >= 0;
+    if (!needsQuotes) return text;
+    return '"' + text.split('"').join('""') + '"';
+  }
+
+  function exportCsvV6540(key, filename){
+    var cfg = registryV6540[key];
+    if (!cfg) return '';
+    var columns = visibleColumnsV6540(cfg);
+    var lines = [columns.map(function(column){
+      return csvCellV6540(column.title || column.label);
+    }).join(',')];
+    cfg.viewRows.forEach(function(row){
+      lines.push(columns.map(function(column){
+        return csvCellV6540(formatCellV6540(row, column));
+      }).join(','));
+    });
+    var csv = lines.join('\r\n');
+    try {
+      var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = filename || (cfg.key + '.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    } catch (error) {}
+    return csv;
+  }
+
+  var chooserPopoverV6543 = null;
+  var chooserKeyV6543 = null;
+  var chooserButtonV6543 = null;
+  var chooserPositionFrameV6543 = 0;
+
+  function hideableColumnsV6543(cfg){
+    return cfg.columns.filter(function(column, index){
+      return index > 0 && column.hideable;
+    });
+  }
+
+  function closeChooserV6543(options){
+    var returnFocus = options && options.returnFocus;
+    var focusTarget = chooserButtonV6543;
+    if (chooserPopoverV6543 && chooserPopoverV6543.parentNode) {
+      chooserPopoverV6543.parentNode.removeChild(chooserPopoverV6543);
+    }
+    chooserPopoverV6543 = null;
+    chooserKeyV6543 = null;
+    chooserButtonV6543 = null;
+    var buttons = document.querySelectorAll(
+      '.cdaColChooserBtnV6542[aria-expanded="true"]'
+    );
+    Array.prototype.forEach.call(buttons, function(button){
+      button.setAttribute('aria-expanded', 'false');
+    });
+    if (returnFocus && focusTarget && focusTarget.isConnected && focusTarget.focus) {
+      focusTarget.focus();
+    }
+  }
+
+  function renderChooserV6543(){
+    if (!chooserPopoverV6543 || !chooserKeyV6543) return;
+    var cfg = registryV6540[chooserKeyV6543];
+    if (!cfg) return;
+    var hidden = hiddenSetV6540(cfg);
+    var hideableColumns = hideableColumnsV6543(cfg);
+    if (!hideableColumns.length) {
+      closeChooserV6543();
+      return;
+    }
+
+    var allVisible = hideableColumns.every(function(column){
+      return !hidden.has(column.field);
+    });
+    var action = allVisible ? 'hideAll' : 'showAll';
+    var actionLabel = allVisible ? 'Hide all' : 'Show all';
+    var html = '<div class="cdaChooserHeaderV6542">'
+      + '<span>Columns</span>'
+      + '<button type="button" class="cdaTableButtonV6542 cdaTableButtonSmallV6542"'
+      + ' data-cda-chooser-action="' + action + '">'
+      + actionLabel + '</button></div>';
+
+    hideableColumns.forEach(function(column){
+      var checked = hidden.has(column.field) ? '' : ' checked';
+      html += '<label><input type="checkbox" data-cda-chooser-field="'
+        + escV6540(column.field) + '"' + checked + '><span>'
+        + escV6540(column.title || column.label) + '</span></label>';
+    });
+
+    chooserPopoverV6543.innerHTML = html;
+
+    var inputs = chooserPopoverV6543.querySelectorAll('[data-cda-chooser-field]');
+    Array.prototype.forEach.call(inputs, function(input){
+      input.addEventListener('change', function(){
+        var field = input.getAttribute('data-cda-chooser-field');
+        var set = new Set((hiddenV6540[chooserKeyV6543] || []).map(String));
+        if (input.checked) set.delete(field);
+        else set.add(field);
+        hiddenV6540[chooserKeyV6543] = Array.from(set);
+        writeJsonV6540(COLS_STORE_V6540, hiddenV6540);
+        renderV6540(chooserKeyV6543);
+        renderChooserV6543();
+        scheduleChooserPositionV6543();
+      });
+    });
+
+    var actionButton = chooserPopoverV6543.querySelector(
+      '[data-cda-chooser-action]'
+    );
+    if (actionButton) {
+      actionButton.addEventListener('click', function(){
+        var nextAction = actionButton.getAttribute('data-cda-chooser-action');
+        var fields = hideableColumns.map(function(column){ return column.field; });
+        hiddenV6540[chooserKeyV6543] = nextAction === 'hideAll'
+          ? fields.slice()
+          : [];
+        writeJsonV6540(COLS_STORE_V6540, hiddenV6540);
+        renderV6540(chooserKeyV6543);
+        renderChooserV6543();
+        scheduleChooserPositionV6543();
+      });
+    }
+  }
+
+  function positionChooserV6543(){
+    chooserPositionFrameV6543 = 0;
+    if (!chooserPopoverV6543 || !chooserButtonV6543 || !chooserButtonV6543.isConnected) {
+      return;
+    }
+    var rect = chooserButtonV6543.getBoundingClientRect();
+    var width = Math.min(260, Math.max(190, window.innerWidth - 16));
+    chooserPopoverV6543.style.width = width + 'px';
+    chooserPopoverV6543.style.left = Math.max(
+      8,
+      Math.min(window.innerWidth - width - 8, rect.right - width)
+    ) + 'px';
+
+    var below = rect.bottom + 6;
+    var estimatedHeight = Math.min(
+      340,
+      chooserPopoverV6543.scrollHeight || 280
+    );
+    if (below + estimatedHeight <= window.innerHeight - 10) {
+      chooserPopoverV6543.style.top = below + 'px';
+      chooserPopoverV6543.style.bottom = 'auto';
+    } else {
+      chooserPopoverV6543.style.top = 'auto';
+      chooserPopoverV6543.style.bottom = (
+        window.innerHeight - rect.top + 6
+      ) + 'px';
+    }
+  }
+
+  function scheduleChooserPositionV6543(){
+    if (!chooserPopoverV6543 || chooserPositionFrameV6543) return;
+    chooserPositionFrameV6543 = window.requestAnimationFrame(positionChooserV6543);
+  }
+
+  function toggleChooserV6543(key, event){
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    var button = event && event.currentTarget ? event.currentTarget : null;
+    if (chooserPopoverV6543 && chooserKeyV6543 === key) {
+      closeChooserV6543();
+      return;
+    }
+
+    closeChooserV6543();
+    var cfg = registryV6540[key];
+    if (!cfg || !hideableColumnsV6543(cfg).length) return;
+
+    chooserKeyV6543 = key;
+    chooserButtonV6543 = button;
+    chooserPopoverV6543 = document.createElement('div');
+    chooserPopoverV6543.className = 'cdaColChooserPopoverV6542';
+    chooserPopoverV6543.id = 'cdaColChooserPopoverV6543-'
+      + key.replace(/[^a-z0-9_-]/gi, '-');
+    chooserPopoverV6543.setAttribute('role', 'dialog');
+    chooserPopoverV6543.setAttribute('aria-label', 'Choose visible columns');
+    chooserPopoverV6543.addEventListener('click', function(popoverEvent){
+      popoverEvent.stopPropagation();
+    });
+    document.body.appendChild(chooserPopoverV6543);
+
+    if (button) {
+      button.setAttribute('aria-expanded', 'true');
+      button.setAttribute('aria-controls', chooserPopoverV6543.id);
+    }
+
+    renderChooserV6543();
+    positionChooserV6543();
+  }
+
+  function ensureChooserButtonV6543(cfg, frame){
+    if (!cfg || !frame) return;
+    var tools = cfg.$toolsV6543 || directChildByClassV6543(
+      frame,
+      'cdaTableToolsV6542'
+    );
+    if (!tools) return;
+
+    var hideableColumns = hideableColumnsV6543(cfg);
+    var existing = null;
+    var existingButtons = tools.querySelectorAll('.cdaColChooserBtnV6542');
+    for (var index = 0; index < existingButtons.length; index += 1) {
+      if (existingButtons[index].getAttribute('data-cda-chooser-key') === cfg.key) {
+        existing = existingButtons[index];
+        break;
+      }
+    }
+
+    if (!hideableColumns.length) {
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      tools.hidden = true;
+      return;
+    }
+
+    tools.hidden = false;
+    if (existing) return;
+
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'cdaTableButtonV6542 cdaTableButtonIconV6542 cdaColChooserBtnV6542';
+    button.setAttribute('aria-label', 'Choose columns');
+    button.setAttribute('aria-expanded', 'false');
+    button.setAttribute('data-cda-chooser-key', cfg.key);
+    button.title = 'Show or hide columns';
+    button.innerHTML = '<span aria-hidden="true">&#9776;</span>';
+    button.addEventListener('click', function(buttonEvent){
+      toggleChooserV6543(cfg.key, buttonEvent);
+    });
+    tools.appendChild(button);
+  }
+
+  document.addEventListener('click', function(event){
+    if (!chooserPopoverV6543) return;
+    var target = event.target;
+    if (target && target.closest
+        && target.closest('.cdaColChooserPopoverV6542,.cdaColChooserBtnV6542')) {
+      return;
+    }
+    closeChooserV6543();
+  });
+
+  document.addEventListener('keydown', function(event){
+    if (event.key === 'Escape' && chooserPopoverV6543) {
+      closeChooserV6543({ returnFocus: true });
+    }
+  });
+
+  document.addEventListener('scroll', scheduleChooserPositionV6543, true);
+  window.addEventListener('resize', scheduleChooserPositionV6543, { passive: true });
+
+  var api = {
+    version: MODULE_VERSION_V6540,
+
+    register: function(config){
+      if (!config || !config.key) return null;
+      var cfg = normalizeConfigV6540(config);
+      registryV6540[cfg.key] = cfg;
+      if (cfg.rows && cfg.rows.length) renderV6540(cfg.key);
+      return cfg.key;
+    },
+
+    registered: function(key){ return !!registryV6540[key]; },
+
+    setRows: function(key, rows, options){
+      var cfg = registryV6540[key];
+      if (!cfg) return;
+      cfg.rows = rows || [];
+      if (options && options.clearSelection) cfg.selection.clear();
+      if (!options || options.render !== false) renderV6540(key);
+    },
+
+    getRows: function(key){
+      var cfg = registryV6540[key];
+      return cfg ? cfg.rows.slice() : [];
+    },
+
+    getViewRows: function(key){
+      var cfg = registryV6540[key];
+      return cfg ? cfg.viewRows.slice() : [];
+    },
+
+    render: renderV6540,
+
+    renderAll: function(){
+      Object.keys(registryV6540).forEach(renderV6540);
+    },
+
+    setSort: function(key, field, dir){
+      if (!registryV6540[key]) return;
+      sortsV6540[key] = {
+        field: field,
+        dir: dir === 'asc' ? 'asc' : 'desc'
+      };
+      writeJsonV6540(SORT_STORE_V6540, sortsV6540);
+      renderV6540(key);
+    },
+
+    toggleSort: function(key, field){
+      var cfg = registryV6540[key];
+      if (!cfg) return;
+      var column = columnByFieldV6540(cfg, field);
+      var current = activeSortV6540(cfg) || {};
+      var nextDir;
+      if (current.field === field) {
+        nextDir = current.dir === 'desc' ? 'asc' : 'desc';
+      } else {
+        nextDir = column && column.numeric ? 'desc' : 'asc';
+      }
+      api.setSort(key, field, nextDir);
+    },
+
+    getSort: function(key){
+      var cfg = registryV6540[key];
+      return cfg ? Object.assign({}, activeSortV6540(cfg)) : null;
+    },
+
+    columns: function(key){
+      var cfg = registryV6540[key];
+      if (!cfg) return [];
+      var hidden = hiddenSetV6540(cfg);
+      return cfg.columns.map(function(column, index){
+        return {
+          field: column.field,
+          label: column.label,
+          title: column.title,
+          numeric: column.numeric,
+          hideable: column.hideable && index > 0,
+          visible: !hidden.has(column.field)
+        };
+      });
+    },
+
+    toggleColumn: function(key, field, visible){
+      if (!registryV6540[key]) return;
+      var list = new Set((hiddenV6540[key] || []).map(String));
+      var shouldHide = visible == null ? !list.has(field) : !visible;
+      if (shouldHide) list.add(field);
+      else list.delete(field);
+      hiddenV6540[key] = Array.from(list);
+      writeJsonV6540(COLS_STORE_V6540, hiddenV6540);
+      renderV6540(key);
+    },
+
+    resetColumns: function(key){
+      delete hiddenV6540[key];
+      writeJsonV6540(COLS_STORE_V6540, hiddenV6540);
+      renderV6540(key);
+    },
+
+    hiddenCount: function(key){
+      return (hiddenV6540[key] || []).length;
+    },
+
+    setLimit: function(key, limit){
+      var cfg = registryV6540[key];
+      if (!cfg) return;
+      cfg.limit = Number(limit) || cfg.limit;
+      renderV6540(key);
+    },
+
+    getSelection: function(key){
+      var cfg = registryV6540[key];
+      return cfg ? Array.from(cfg.selection) : [];
+    },
+
+    setSelection: function(key, values, options){
+      var cfg = registryV6540[key];
+      if (!cfg) return;
+      cfg.selection = new Set((values || []).map(String));
+      if (!options || options.render !== false) renderV6540(key);
+    },
+
+    clearSelection: function(key){
+      if (key) {
+        api.setSelection(key, []);
+        return;
+      }
+      Object.keys(registryV6540).forEach(function(registryKey){
+        api.setSelection(registryKey, []);
+      });
+    },
+
+    toggleChooser: toggleChooserV6543,
+    closeChooser: closeChooserV6543,
+    exportCsv: exportCsvV6540,
+    formatters: FORMATTERS_V6540,
+    config: function(key){ return registryV6540[key] || null; },
+    keys: function(){ return Object.keys(registryV6540); }
+  };
+
+  window.cdaTable = api;
+  window.CdaSharedTableModule = api;
+  window.cdaTableSortV6540 = function(key, field){
+    api.toggleSort(key, field);
+  };
+  window.cdaTableSortV6539 = window.cdaTableSortV6540;
+  window.cdaTableSortV6542 = window.cdaTableSortV6540;
+  window.cdaTableSortV6543 = window.cdaTableSortV6540;
+  window.CDA_TABLE_MODULE_VERSION = MODULE_VERSION_V6540;
+})();
+</script>

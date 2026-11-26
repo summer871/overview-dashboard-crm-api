@@ -1,0 +1,132 @@
+<!-- SharedDashboardAuditV6550.html
+Version: v6.681
+Date: 2026-08-25
+Purpose: Audit the single shared replace-mode dashboard owner across Remake and TAT, including component identity, toolbar ownership, duplicate IDs, and absence of active legacy/decorator Remake construction.
+-->
+<script id="cdaSharedDashboardAuditControllerV6550">
+(function installSharedDashboardAuditV6550(){
+  'use strict';
+
+  if (window.cdaDashboardAuditV6550 && window.cdaDashboardAuditV6550.version === 'v6.681') return;
+
+  function visible(node){
+    if (!node || !window.getComputedStyle) return false;
+    const style = window.getComputedStyle(node);
+    return !node.hidden && style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }
+
+  function styleSignature(node){
+    if (!node || !window.getComputedStyle) return '';
+    const style = window.getComputedStyle(node);
+    return [style.width,style.height,style.minWidth,style.minHeight,style.paddingLeft,
+      style.paddingRight,style.borderWidth,style.borderStyle,style.borderRadius,
+      style.backgroundColor,style.color,style.fontFamily,style.fontSize,
+      style.fontWeight,style.lineHeight].join('|');
+  }
+
+  function expectedIconName(button){
+    return button && (button.getAttribute('data-cda-dashboard-icon-state') ||
+      button.getAttribute('data-cda-dashboard-icon') || '') || '';
+  }
+
+  function duplicateIds(root){
+    const seen = new Set();
+    const duplicates = new Set();
+    if (!root) return [];
+    root.querySelectorAll('[id]').forEach(function(node){
+      if (seen.has(node.id)) duplicates.add(node.id); else seen.add(node.id);
+    });
+    return Array.from(duplicates).sort();
+  }
+
+  function tabAudit(tabKey){
+    const platform = window.cdaDashboardPlatformV6547;
+    const renderer = window.cdaDashboardRendererV6547;
+    const tab = platform && platform.getTab(tabKey);
+    const page = tab && document.getElementById(tab.pageId);
+    const base = renderer && tab ? renderer.audit(tabKey) : null;
+    const toolbars = page ? Array.from(page.querySelectorAll('.cdaDashboardToolbarV6547')) : [];
+    const expectedToolbarCount = tab ? tab.components.length : 0;
+    const duplicateToolbars = [];
+    if (tab && page) {
+      tab.components.forEach(function(component){
+        const count = page.querySelectorAll('.cdaDashboardToolbarV6547[data-cda-dashboard-toolbar="' + component.key + '"]').length;
+        if (count !== 1) duplicateToolbars.push({component:component.key,count:count});
+      });
+    }
+    return {
+      tabKey:tabKey,
+      registered:!!tab,
+      mountMode:tab && tab.mountMode,
+      pagePresent:!!page,
+      canonicalPage:!!page && page.getAttribute('data-cda-dashboard-tab') === tabKey,
+      duplicateIds:duplicateIds(page),
+      toolbarCount:toolbars.length,
+      expectedToolbarCount:expectedToolbarCount,
+      duplicateToolbars:duplicateToolbars,
+      rendererAudit:base,
+      ok:!!tab && tab.mountMode === 'replace' && !!page &&
+        page.getAttribute('data-cda-dashboard-tab') === tabKey &&
+        duplicateIds(page).length === 0 && toolbars.length === expectedToolbarCount && duplicateToolbars.length === 0 &&
+        !!base && base.validation && base.validation.ok && base.oneCardPerComponent && base.headerControlsOwned
+    };
+  }
+
+  function remakeLegacyAudit(){
+    const page = document.getElementById('remakeFactorPage');
+    const visibleLegacyHeaderActions = [];
+    if (page) {
+      page.querySelectorAll('.remakeCardHeader button,.cdaDashboardCardHeaderV6547 button').forEach(function(button){
+        if (!visible(button)) return;
+        if (button.closest('.cdaDashboardToolbarV6547')) return;
+        if (button.matches('[data-cda-dashboard-title-toggle="true"]') || button.closest('[data-cda-dashboard-title-toggle="true"]')) return;
+        if (button.closest('.remakeProductModeBarV6264')) return;
+        visibleLegacyHeaderActions.push({id:button.id || '',text:String(button.textContent || '').trim()});
+      });
+    }
+    return {
+      oldStaticShellAbsent:!!page && page.querySelectorAll(':scope > .remakeShell').length === 0,
+      decoratedMarkerAbsent:!!page && !page.hasAttribute('data-cda-dashboard-decorated-tab'),
+      nativeLegacySectionButtonsAbsent:!!page && page.querySelectorAll('[data-remake-section-toggle-v6402]').length === 0,
+      decoratorInactive:!window.cdaDashboardDecoratorV6548,
+      legacyBridgeInactive:!window.cdaRemakeLegacyBridgeV6554,
+      visibleLegacyHeaderActions:visibleLegacyHeaderActions,
+      ok:!!page && page.querySelectorAll(':scope > .remakeShell').length === 0 &&
+        !page.hasAttribute('data-cda-dashboard-decorated-tab') &&
+        page.querySelectorAll('[data-remake-section-toggle-v6402]').length === 0 &&
+        !window.cdaDashboardDecoratorV6548 && !window.cdaRemakeLegacyBridgeV6554 &&
+        visibleLegacyHeaderActions.length === 0
+    };
+  }
+
+  function audit(){
+    const remake = tabAudit('remake');
+    const tat = tabAudit('tat');
+    const legacy = remakeLegacyAudit();
+    const catalog = window.cdaDashboardCatalogV6555 && typeof window.cdaDashboardCatalogV6555.audit === 'function'
+      ? window.cdaDashboardCatalogV6555.audit()
+      : {ok:false};
+    return {
+      version:'v6.681',
+      mode:'single-shared-replace-render-owner',
+      remake:remake,
+      tat:tat,
+      remakeLegacy:legacy,
+      componentCatalog:catalog,
+      bothTabsReplaceMode:remake.mountMode === 'replace' && tat.mountMode === 'replace',
+      oneRendererOwner:!!window.cdaDashboardRendererV6547 && !window.cdaDashboardDecoratorV6548,
+      ok:remake.ok && tat.ok && legacy.ok && catalog.ok
+    };
+  }
+
+  window.cdaDashboardAuditV6550 = Object.freeze({
+    version:'v6.681',
+    visible:visible,
+    styleSignature:styleSignature,
+    expectedIconName:expectedIconName,
+    audit:audit,
+    tabAudit:tabAudit,
+    remakeLegacyAudit:remakeLegacyAudit
+  });
+})();
+</script>

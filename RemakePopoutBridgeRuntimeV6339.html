@@ -1,0 +1,391 @@
+  window.CDA_REMAKE_INTERACTIVE_POPOUT_VERSION = 'v6.658-popback-sync';
+  const remakePopoutRefsV6339 = Object.create(null);
+  let remakePopoutSyncTimerV6339 = 0;
+  const remakePopoutSyncBurstTimersV6658 = Object.create(null);
+  const REMAKE_POPOUT_RESTORE_STYLE_ID_V6658 = 'remakePopoutRestoreStylesV6658';
+
+  function ensureRemakePopoutRestoreStylesV6658() {
+    if (document.getElementById(REMAKE_POPOUT_RESTORE_STYLE_ID_V6658)) return;
+    const style = document.createElement('style');
+    style.id = REMAKE_POPOUT_RESTORE_STYLE_ID_V6658;
+    style.textContent = [
+      '#remakeFactorPage .remakeCard.remakePoppedSourceV6658{position:relative!important}',
+      '#remakeFactorPage .remakePopBackOverlayV6658{position:absolute!important;inset:0!important;z-index:850!important;background:rgba(229,231,235,.86)!important;backdrop-filter:grayscale(1) opacity(.9)!important;display:flex!important;align-items:flex-start!important;justify-content:flex-end!important;padding:8px!important;box-sizing:border-box!important;pointer-events:auto!important}',
+      '#remakeFactorPage .remakePopBackButtonV6658{height:30px!important;border:1px solid #cfd6df!important;border-radius:999px!important;background:#fff!important;color:#172033!important;font:900 12px/1 Roboto,Arial,sans-serif!important;padding:0 12px!important;cursor:pointer!important;box-shadow:0 1px 2px rgba(16,24,40,.14)!important}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  function remakePopoutCardV6658(component) {
+    const meta = remakePopoutMetaV6339(component);
+    if (!meta) return null;
+
+    const source = meta.containerId
+      ? idV6230(meta.containerId)
+      : meta.canvasId
+        ? idV6230(meta.canvasId)
+        : meta.tableId
+          ? idV6230(meta.tableId)
+          : null;
+
+    if (!source) return null;
+    if (source.classList && source.classList.contains('remakeCard')) return source;
+    return source.closest ? source.closest('.remakeCard') : null;
+  }
+
+  function restoreRemakePopoutSourceV6658(component) {
+    const card = remakePopoutCardV6658(component);
+    if (!card) return false;
+
+    card.classList.remove('remakePoppedSourceV6658');
+    card.removeAttribute('data-remake-popout-component-v6658');
+
+    const overlay = card.querySelector('.remakePopBackOverlayV6658');
+    if (overlay && overlay.parentNode === card) overlay.remove();
+
+    return true;
+  }
+
+  function markRemakePopoutSourceV6658(component) {
+    ensureRemakePopoutRestoreStylesV6658();
+
+    const card = remakePopoutCardV6658(component);
+    if (!card) return false;
+
+    const existingOverlay = card.querySelector('.remakePopBackOverlayV6658');
+    if (existingOverlay) existingOverlay.remove();
+
+    card.classList.add('remakePoppedSourceV6658');
+    card.setAttribute('data-remake-popout-component-v6658', String(component || ''));
+
+    const overlay = document.createElement('div');
+    overlay.className = 'remakePopBackOverlayV6658';
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'remakePopBackButtonV6658';
+    button.textContent = 'Pop back in ×';
+    button.addEventListener('click', function(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      window.__closeRemakePopoutV6658(component);
+    });
+
+    overlay.appendChild(button);
+    card.appendChild(overlay);
+    return true;
+  }
+
+  function clearRemakePopoutSyncBurstV6658(component) {
+    const key = String(component || '');
+    const timers = remakePopoutSyncBurstTimersV6658[key] || [];
+
+    timers.forEach(function(timer) {
+      try { window.clearTimeout(timer); } catch (error) {}
+    });
+
+    delete remakePopoutSyncBurstTimersV6658[key];
+  }
+
+  function pushRemakePopoutSnapshotV6658(component) {
+    const key = String(component || '');
+    const ref = remakePopoutRefsV6339[key];
+
+    if (!ref || !ref.win || ref.win.closed) {
+      delete remakePopoutRefsV6339[key];
+      clearRemakePopoutSyncBurstV6658(key);
+      restoreRemakePopoutSourceV6658(key);
+      return false;
+    }
+
+    // A dashboard render can rebuild the source card while the popup remains open.
+    // Re-mark the current card on every bounded sync so Pop back in survives redraws.
+    markRemakePopoutSourceV6658(key);
+
+    const snapshot = window.getRemakePopoutSnapshotV6339(key);
+
+    try {
+      if (typeof ref.win.__receiveRemakeSnapshotV6339 === 'function') {
+        ref.win.__receiveRemakeSnapshotV6339(snapshot);
+      } else {
+        ref.win.postMessage({ type:'remakeSnapshotV6339', snapshot:snapshot }, '*');
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function scheduleRemakePopoutSyncBurstV6658(component) {
+    const key = String(component || '');
+    const keys = key ? [key] : Object.keys(remakePopoutRefsV6339);
+
+    keys.forEach(function(target) {
+      clearRemakePopoutSyncBurstV6658(target);
+
+      const timers = [];
+      remakePopoutSyncBurstTimersV6658[target] = timers;
+
+      const push = function() {
+        pushRemakePopoutSnapshotV6658(target);
+      };
+
+      if (typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(function() {
+          window.requestAnimationFrame(push);
+        });
+      }
+
+      [120, 320, 700].forEach(function(delay) {
+        timers.push(window.setTimeout(push, delay));
+      });
+    });
+  }
+
+  window.scheduleRemakePopoutSyncBurstV6658 = scheduleRemakePopoutSyncBurstV6658;
+
+  window.__closeRemakePopoutV6658 = function closeRemakePopoutV6658(component) {
+    const key = String(component || '');
+    const ref = remakePopoutRefsV6339[key];
+
+    try {
+      if (ref && ref.win && !ref.win.closed) ref.win.close();
+    } catch (error) {}
+
+    delete remakePopoutRefsV6339[key];
+    clearRemakePopoutSyncBurstV6658(key);
+    restoreRemakePopoutSourceV6658(key);
+  };
+
+  function installRemakePopoutRestoreV6658() {
+    const original = window.popoutRemakeComponentV6230;
+
+    if (typeof original !== 'function') return false;
+    if (original.__remakePopbackV6658 === true) return true;
+
+    const wrapped = function popoutRemakeComponentV6658(component) {
+      const result = original.apply(this, arguments);
+
+      window.setTimeout(function() {
+        const key = String(component || '');
+        const ref = remakePopoutRefsV6339[key];
+
+        if (ref && ref.win && !ref.win.closed) {
+          markRemakePopoutSourceV6658(key);
+          scheduleRemakePopoutSyncBurstV6658(key);
+        } else {
+          restoreRemakePopoutSourceV6658(key);
+        }
+      }, 0);
+
+      return result;
+    };
+
+    wrapped.__remakePopbackV6658 = true;
+    wrapped.__remakeOriginalV6658 = original;
+    window.popoutRemakeComponentV6230 = wrapped;
+    return true;
+  }
+
+  window.setTimeout(installRemakePopoutRestoreV6658, 0);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', installRemakePopoutRestoreV6658, { once:true });
+  }
+
+  function remakePopoutMetaV6339(component) {
+    return {
+      trend: { type: 'trend', title: remakeTrendDisplayTitleV6302(), canvasId: 'remakeTrendChartV6230' },
+      reason: { type: 'table', title: 'Remake Reasons', tableId: 'remakeReasonTable' },
+      department: { type: 'table', title: 'Departments', tableId: 'remakeDepartmentTable' },
+      product: { type: 'table', title: uiV6230.productTableMode === 'group' ? 'Product Groups' : 'Products', tableId: 'remakeProductTable' },
+      customer: { type: 'customer', title: 'Customers', canvasId: 'remakeCustomerChartV6230', tableId: 'remakeCustomerTable' },
+      ceramist: { type: 'ceramist', title: 'Technicians', containerId: 'remakeCeramistCardV6342' }
+    }[component] || null;
+  }
+
+  function clonePopupValueV6339(value) {
+    if (Array.isArray(value)) return value.map(clonePopupValueV6339);
+    if (value === null || value === undefined) return value;
+    if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') return value;
+    if (typeof value === 'object' && Number.isFinite(Number(value.x)) && Number.isFinite(Number(value.y))) {
+      return { x: Number(value.x), y: Number(value.y) };
+    }
+    return undefined;
+  }
+
+  function clonePopupDatasetV6339(dataset, index) {
+    const copy = {};
+    [
+      'label','type','data','monthKeys','customerKeys','fill','tension','borderWidth',
+      'borderDash','borderColor','backgroundColor','pointRadius','pointHoverRadius',
+      'pointHitRadius','pointBackgroundColor','pointBorderColor','pointBorderWidth',
+      'maxBarThickness','categoryPercentage','barPercentage','borderRadius','borderSkipped'
+    ].forEach(function(field) {
+      const value = clonePopupValueV6339(dataset && dataset[field]);
+      if (value !== undefined) copy[field] = value;
+    });
+    copy.label = String(copy.label || (index === 0 ? 'Current' : 'Prior'));
+    copy.data = Array.isArray(copy.data) ? copy.data : [];
+    return copy;
+  }
+
+  function popupTableHtmlV6339(component) {
+    const meta = remakePopoutMetaV6339(component);
+    const source = meta && meta.containerId ? idV6230(meta.containerId) : (meta && meta.tableId ? idV6230(meta.tableId) : null);
+    if (!source) return '';
+    const clone = source.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.querySelectorAll('[id]').forEach(function(node){ node.removeAttribute('id'); });
+    clone.querySelectorAll('[style]').forEach(function(node){ node.removeAttribute('style'); });
+    clone.querySelectorAll('script').forEach(function(node){ node.remove(); });
+    if (component === 'ceramist') {
+      clone.querySelectorAll('.remakeCardActionsV6230').forEach(function(node){ node.remove(); });
+    }
+    return clone.outerHTML;
+  }
+
+  function popupChartSnapshotV6339(component) {
+    const chart = component === 'trend' ? remakeChartV6230 : customerChartV6230;
+    if (!chart || !chart.data) return null;
+    const datasets = (chart.data.datasets || []).map(clonePopupDatasetV6339);
+    let axisTitle = '';
+    try { axisTitle = String(chart.options.scales.y.title.text || ''); } catch (error) {}
+    return {
+      chartType: (chart.config && chart.config.type) || (component === 'customer' ? 'bar' : 'line'),
+      labels: (chart.data.labels || []).map(String),
+      datasets: datasets,
+      axisTitle: axisTitle
+    };
+  }
+
+  window.getRemakePopoutSnapshotV6339 = function getRemakePopoutSnapshotV6339(component) {
+    const meta = remakePopoutMetaV6339(component);
+    if (!meta) return { ok:false, component:component, message:'Unknown Remake panel.' };
+    const scope = comparisonScopeV6295(normalizedRowsV6230());
+    const chart = meta.type === 'trend' || meta.type === 'customer' ? popupChartSnapshotV6339(component) : null;
+    const valueMode = uiV6230.trendValueMode === 'percent' ? 'percent' : 'total';
+    const measure = uiV6230.trendMeasure === 'units' ? 'units' : 'cases';
+    const mode = uiV6230.mode || 'line';
+    const valueFormat = valueMode === 'percent'
+      ? (mode === 'mom' ? 'points' : 'percent')
+      : (measure === 'units' ? 'count1' : 'count0');
+    return {
+      ok: (meta.type === 'table' || meta.type === 'ceramist') ? !!(meta.tableId || meta.containerId) : !!chart,
+      component: component,
+      type: meta.type,
+      title: meta.title,
+      chart: chart,
+      tableHtml: (meta.tableId || meta.containerId) ? popupTableHtmlV6339(component) : '',
+      updatedAt: new Date().toLocaleTimeString(),
+      compareYear: scope.priorYear || 'Prior',
+      controls: {
+        mode: mode,
+        measure: measure,
+        valueMode: valueMode,
+        cumulative: uiV6230.trendCumulative === true,
+        cumulativeAllowed: mode === 'line' && valueMode === 'total',
+        valueFormat: valueFormat,
+        compare: meta.tableId ? tableCompareOnV6297(component) : false,
+        productMode: uiV6230.productTableMode === 'group' ? 'group' : 'product',
+        customerMode: uiV6230.customerTableMode === 'all' ? 'all' : 'highest',
+        ceramistCaseStatus: ceramistStateV6342.caseStatus || 'all',
+        ceramistDiagnostic: ceramistStateV6342.diagnosticFlag || 'none',
+        ceramistBreakdown: ceramistStateV6342.breakdown || 'product',
+        selectedCeramist: ceramistStateV6342.selectedCeramist || ''
+      },
+      message: chart || meta.type === 'table' || meta.type === 'ceramist' ? '' : 'Chart is not ready yet.'
+    };
+  };
+
+  function scheduleRemakePopoutSyncV6339(delay) {
+    if (remakePopoutSyncTimerV6339) window.clearTimeout(remakePopoutSyncTimerV6339);
+    remakePopoutSyncTimerV6339 = window.setTimeout(function() {
+      remakePopoutSyncTimerV6339 = 0;
+      Object.keys(remakePopoutRefsV6339).forEach(function(component) {
+        const ref = remakePopoutRefsV6339[component];
+        if (!ref || !ref.win || ref.win.closed) {
+          delete remakePopoutRefsV6339[component];
+          clearRemakePopoutSyncBurstV6658(component);
+          restoreRemakePopoutSourceV6658(component);
+          return;
+        }
+        const snapshot = window.getRemakePopoutSnapshotV6339(component);
+        try {
+          if (typeof ref.win.__receiveRemakeSnapshotV6339 === 'function') ref.win.__receiveRemakeSnapshotV6339(snapshot);
+          else ref.win.postMessage({ type:'remakeSnapshotV6339', snapshot:snapshot }, '*');
+        } catch (error) {}
+      });
+    }, delay || 220);
+  }
+  window.scheduleRemakePopoutSyncV6339 = scheduleRemakePopoutSyncV6339;
+
+  function popupActionEventV6339(payload) {
+    return {
+      ctrlKey: !!(payload && (payload.ctrlKey || payload.metaKey)),
+      metaKey: !!(payload && payload.metaKey),
+      shiftKey: !!(payload && payload.shiftKey),
+      preventDefault: function(){},
+      stopPropagation: function(){}
+    };
+  }
+
+  window.applyRemakePopoutActionV6339 = function applyRemakePopoutActionV6339(payload) {
+    const action = payload || {};
+    const event = popupActionEventV6339(action);
+    try {
+      if (action.kind === 'month' && action.value) {
+        toggleMonthV6230(String(action.value), event);
+      } else if (action.kind === 'monthRange') {
+        const values = Array.isArray(action.values) ? action.values.map(String).filter(Boolean) : [];
+        pushRemakeUndoV6266();
+        const next = action.additive ? new Set(uiV6230.selectedMonths || []) : new Set();
+        values.forEach(function(value){ next.add(value); });
+        uiV6230.selectedMonths = next;
+        persistUiV6230();
+        renderDashboardV6230();
+      } else if (action.kind === 'tableFilter' && action.filterKind && action.value !== undefined) {
+        window.applyRemakeTableFilterV6230(String(action.filterKind), String(action.value), event);
+      } else if (action.kind === 'sort' && action.component && action.field) {
+        window.setRemakeSortV6230(String(action.component), String(action.field));
+      } else if (action.kind === 'trendMode') {
+        window.setRemakeChartModeV6230(action.value);
+      } else if (action.kind === 'trendMeasure') {
+        window.setRemakeTrendMeasureV6245(action.value);
+      } else if (action.kind === 'trendValue') {
+        window.setRemakeTrendValueModeV6247(action.value);
+      } else if (action.kind === 'trendCumulative') {
+        window.setRemakeTrendCumulativeV6304(action.value === true);
+      } else if (action.kind === 'compare' && action.component) {
+        window.toggleRemakeTableCompareV6297(String(action.component));
+      } else if (action.kind === 'productMode') {
+        window.setRemakeProductTableModeV6264(action.value);
+      } else if (action.kind === 'customerMode') {
+        window.setRemakeCustomerTableModeV6251(action.value);
+      } else if (action.kind === 'ceramistCaseStatus') {
+        window.setCeramistCaseStatusV6343(action.value);
+      } else if (action.kind === 'ceramistDiagnostic') {
+        window.setCeramistDiagnosticV6343(action.value);
+      } else if (action.kind === 'ceramistBreakdown') {
+        window.setCeramistBreakdownV6343(action.value);
+      } else if (action.kind === 'ceramistSelect') {
+        window.selectCeramistV6343(action.value);
+      } else if (action.kind === 'ceramistFlag') {
+        window.setCeramistFlagV6342(action.value);
+      } else if (action.kind === 'export' && action.component) {
+        window.exportRemakeComponentV6230(String(action.component));
+      } else if (action.kind === 'clear' && action.component) {
+        window.clearRemakeComponentV6230(String(action.component));
+      }
+    } catch (error) {
+      console.error('Remake pop-out action failed', error);
+    }
+    scheduleRemakePopoutSyncBurstV6658(action.component || '');
+  };
+
+  window.__remakePopoutClosedV6339 = function remakePopoutClosedV6339(component) {
+    const key = String(component || '');
+    delete remakePopoutRefsV6339[key];
+    clearRemakePopoutSyncBurstV6658(key);
+    restoreRemakePopoutSourceV6658(key);
+  };

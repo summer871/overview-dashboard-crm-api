@@ -7,6 +7,14 @@
         "version": "v2",
         "serviceId": "bigquery"
       }
+    ],
+    "libraries": [
+      {
+        "userSymbol": "MagicTouchCrmClient",
+        "version": "11",
+        "libraryId": "11y_xxHvqY09XcBoRElcuYEQCJ71dM15bvBES_-naTMM3YwM1ePufArVz",
+        "developmentMode": false
+      }
     ]
   },
   "exceptionLogging": "STACKDRIVER",

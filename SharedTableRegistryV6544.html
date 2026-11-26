@@ -1,0 +1,330 @@
+<!-- SharedTableRegistryV6544.html
+Central registry and lifecycle manager for shared table definitions and mounted instances.
+Definitions remain static. Resolvers produce runtime DOM-aware configurations.
+Missing dynamic markup is pending, not failed.
+-->
+<script id="cdaSharedTableRegistryScriptV6544">
+(function installSharedTableRegistryV6544(){
+  'use strict';
+
+  var existingRegistryV6544 = window.cdaSharedTableRegistryV6544;
+  var requiredMethodsV6544 = [
+    'register','registerMany','unregister','get','list','render','renderAll',
+    'refresh','unmount','destroy','instance','status','audit'
+  ];
+  var existingIsCompleteV6544 = !!existingRegistryV6544 && requiredMethodsV6544.every(function(name){
+    return typeof existingRegistryV6544[name] === 'function';
+  });
+  if (existingIsCompleteV6544) return;
+
+  var VERSION_V6544 = 'v6.544';
+  var definitionsV6544 = Object.create(null);
+  var instancesV6544 = Object.create(null);
+  var outcomesV6544 = Object.create(null);
+
+  function keyV6544(value){
+    return String(value == null ? '' : value).trim();
+  }
+
+  function normalizeV6544(input){
+    if (window.cdaSharedTableConfigV6544 && typeof window.cdaSharedTableConfigV6544.normalize === 'function') {
+      return window.cdaSharedTableConfigV6544.normalize(input);
+    }
+    if (!input || typeof input !== 'object') throw new Error('Shared table definition must be an object.');
+    if (!keyV6544(input.key)) throw new Error('Shared table definition requires a key.');
+    return input;
+  }
+
+  function dispatchV6544(name, detail){
+    document.dispatchEvent(new CustomEvent(name, { detail:detail }));
+  }
+
+  function outcomeV6544(key, status, context, error){
+    var result = {
+      key:keyV6544(key),
+      status:status,
+      context:context || null,
+      error:error ? String(error && error.message || error) : null
+    };
+    outcomesV6544[result.key] = result;
+    return result;
+  }
+
+  function existingCardV6544(config, runtimeConfig){
+    var runtime = runtimeConfig || {};
+    if (runtime.sourceCard && runtime.sourceCard.nodeType === 1) return runtime.sourceCard;
+    if (runtime.card && runtime.card.nodeType === 1) return runtime.card;
+
+    var selectors = [];
+    if (runtime.cardId) selectors.push('#' + runtime.cardId);
+    if (runtime.hostId) selectors.push('#' + runtime.hostId);
+    selectors.push('[data-cda-table-instance="' + config.key + '"]');
+
+    for (var index = 0; index < selectors.length; index += 1) {
+      var node = document.querySelector(selectors[index]);
+      if (node) return node;
+    }
+    return null;
+  }
+
+  function contextV6544(config, runtimeConfig, rendered){
+    var runtime = runtimeConfig || config;
+    var card = rendered && rendered.nodeType === 1
+      ? rendered
+      : existingCardV6544(config, runtime);
+    var table = runtime.tableNode && runtime.tableNode.nodeType === 1
+      ? runtime.tableNode
+      : null;
+    var body = runtime.bodyNode && runtime.bodyNode.nodeType === 1
+      ? runtime.bodyNode
+      : null;
+
+    if (!table && runtime.tableId) table = document.getElementById(runtime.tableId);
+    if (!body && runtime.bodyId) body = document.getElementById(runtime.bodyId);
+    if (!table && body && body.closest) table = body.closest('table');
+    if (!table && card && card.querySelector) table = card.querySelector('table');
+    if (!body && table && table.querySelector) body = table.querySelector('tbody');
+
+    return {
+      key:config.key,
+      config:config,
+      runtimeConfig:runtime,
+      card:card || null,
+      table:table || null,
+      body:body || null,
+      mountedAt:new Date().toISOString()
+    };
+  }
+
+  function resolveV6544(config){
+    if (typeof config.resolve === 'function') return config.resolve(config);
+
+    var table = config.tableId ? document.getElementById(config.tableId) : null;
+    var body = config.bodyId ? document.getElementById(config.bodyId) : null;
+    if (!table && body && body.closest) table = body.closest('table');
+    if (!body && table && table.querySelector) body = table.querySelector('tbody');
+    if (!table && !body) return null;
+
+    var runtime = {};
+    Object.keys(config).forEach(function(name){ runtime[name] = config[name]; });
+    runtime.tableNode = table || null;
+    runtime.bodyNode = body || null;
+    return runtime;
+  }
+
+  function registerV6544(input){
+    var config = normalizeV6544(input);
+    definitionsV6544[config.key] = config;
+    dispatchV6544('cdaSharedTableRegisteredV6544', { key:config.key, config:config });
+    return config;
+  }
+
+  function registerManyV6544(items){
+    return (Array.isArray(items) ? items : []).map(registerV6544);
+  }
+
+  function getV6544(key){
+    return definitionsV6544[keyV6544(key)] || null;
+  }
+
+  function listV6544(filter){
+    return Object.keys(definitionsV6544).sort().map(function(key){
+      return definitionsV6544[key];
+    }).filter(function(config){
+      if (!filter) return true;
+      if (typeof filter === 'function') return !!filter(config);
+      if (typeof filter === 'string') return config.page === filter;
+      return true;
+    });
+  }
+
+  function featureApiV6544(){
+    var api = window.cdaSharedTableFeatureRegistryV6544;
+    return api && typeof api === 'object' ? api : null;
+  }
+
+  function enableFeaturesV6544(tableContext){
+    var api = featureApiV6544();
+    return api && typeof api.enable === 'function' ? api.enable(tableContext) : [];
+  }
+
+  function refreshFeaturesV6544(tableContext){
+    var api = featureApiV6544();
+    return api && typeof api.refresh === 'function' ? api.refresh(tableContext) : [];
+  }
+
+  function disableFeaturesV6544(tableContext){
+    var api = featureApiV6544();
+    return api && typeof api.disable === 'function' ? api.disable(tableContext.key, tableContext) : [];
+  }
+
+  function renderV6544(key, renderer){
+    var config = typeof key === 'object' ? normalizeV6544(key) : getV6544(key);
+    if (!config) return outcomeV6544(key, 'failed', null, 'Shared table definition is not registered.');
+
+    var current = instancesV6544[config.key] || null;
+    if (current && current.card && document.documentElement.contains(current.card)) {
+      current = contextV6544(config, current.runtimeConfig, current.card);
+      instancesV6544[config.key] = current;
+      refreshFeaturesV6544(current);
+      var existingResult = outcomeV6544(config.key, 'existing', current, null);
+      dispatchV6544('cdaSharedTableExistingV6544', existingResult);
+      return existingResult;
+    }
+
+    var runtimeConfig;
+    try {
+      runtimeConfig = resolveV6544(config);
+    } catch (error) {
+      var resolveFailure = outcomeV6544(config.key, 'failed', null, error);
+      dispatchV6544('cdaSharedTableFailedV6544', resolveFailure);
+      return resolveFailure;
+    }
+
+    if (!runtimeConfig) {
+      var pendingResult = outcomeV6544(config.key, 'pending', null, null);
+      dispatchV6544('cdaSharedTablePendingV6544', pendingResult);
+      return pendingResult;
+    }
+
+    var renderFunction = renderer || config.renderer || window.renderSharedTableCardV6544;
+    var rendered = null;
+    if (typeof renderFunction === 'function') {
+      try {
+        rendered = renderFunction(runtimeConfig, config);
+      } catch (error) {
+        var renderFailure = outcomeV6544(config.key, 'failed', null, error);
+        dispatchV6544('cdaSharedTableFailedV6544', renderFailure);
+        return renderFailure;
+      }
+    }
+
+    if (!rendered) rendered = existingCardV6544(config, runtimeConfig);
+    if (!rendered || rendered.nodeType !== 1) {
+      var nullFailure = outcomeV6544(config.key, 'failed', null, 'No mounted card was found for "' + config.key + '".');
+      dispatchV6544('cdaSharedTableFailedV6544', nullFailure);
+      return nullFailure;
+    }
+
+    var tableContext = contextV6544(config, runtimeConfig, rendered);
+    instancesV6544[config.key] = tableContext;
+    enableFeaturesV6544(tableContext);
+
+    var renderedResult = outcomeV6544(config.key, 'rendered', tableContext, null);
+    dispatchV6544('cdaSharedTableRenderedV6544', renderedResult);
+    return renderedResult;
+  }
+
+  function renderAllV6544(filter, renderer){
+    return listV6544(filter).map(function(config){
+      return renderV6544(config, renderer);
+    });
+  }
+
+  function refreshV6544(key){
+    var normalized = keyV6544(key);
+    var config = getV6544(normalized);
+    if (!config) return outcomeV6544(normalized, 'failed', null, 'Shared table definition is not registered.');
+
+    var current = instancesV6544[normalized] || null;
+    if (!current || !current.card || !document.documentElement.contains(current.card)) {
+      if (current) disableFeaturesV6544(current);
+      delete instancesV6544[normalized];
+      return renderV6544(normalized);
+    }
+
+    var refreshed = contextV6544(config, current.runtimeConfig, current.card);
+    instancesV6544[normalized] = refreshed;
+    refreshFeaturesV6544(refreshed);
+    var result = outcomeV6544(normalized, 'existing', refreshed, null);
+    dispatchV6544('cdaSharedTableRefreshedV6544', result);
+    return result;
+  }
+
+  function unmountV6544(key, options){
+    var normalized = keyV6544(key);
+    var tableContext = instancesV6544[normalized] || null;
+    var config = getV6544(normalized);
+    var settings = options || {};
+
+    if (tableContext) disableFeaturesV6544(tableContext);
+    try {
+      if (config && typeof config.unmount === 'function') {
+        config.unmount(tableContext, settings);
+      } else if (settings.removeCard === true && tableContext && tableContext.card && tableContext.card.parentNode) {
+        tableContext.card.parentNode.removeChild(tableContext.card);
+      }
+    } catch (error) {
+      var failure = outcomeV6544(normalized, 'failed', tableContext, error);
+      dispatchV6544('cdaSharedTableFailedV6544', failure);
+      return failure;
+    }
+
+    delete instancesV6544[normalized];
+    var result = outcomeV6544(normalized, 'unmounted', tableContext, null);
+    dispatchV6544('cdaSharedTableUnmountedV6544', result);
+    return result;
+  }
+
+  function unregisterV6544(key, options){
+    var normalized = keyV6544(key);
+    if (!normalized) return null;
+    var previous = definitionsV6544[normalized] || null;
+    if (!previous) return null;
+    unmountV6544(normalized, options);
+    delete definitionsV6544[normalized];
+    delete outcomesV6544[normalized];
+    dispatchV6544('cdaSharedTableUnregisteredV6544', { key:normalized, config:previous });
+    return previous;
+  }
+
+  function instanceV6544(key){
+    return instancesV6544[keyV6544(key)] || null;
+  }
+
+  function statusV6544(key){
+    return outcomesV6544[keyV6544(key)] || null;
+  }
+
+  function auditV6544(){
+    var statuses = {};
+    Object.keys(outcomesV6544).sort().forEach(function(key){
+      statuses[key] = outcomesV6544[key].status;
+    });
+    var featureApi = featureApiV6544();
+    return {
+      version:VERSION_V6544,
+      completeApi:requiredMethodsV6544.every(function(name){
+        return typeof window.cdaSharedTableRegistryV6544[name] === 'function';
+      }),
+      replacedIncompleteApi:!!existingRegistryV6544,
+      definitions:listV6544().map(function(config){ return config.key; }),
+      instances:Object.keys(instancesV6544).sort(),
+      statuses:statuses,
+      features:featureApi && typeof featureApi.audit === 'function' ? featureApi.audit() : null
+    };
+  }
+
+  window.cdaSharedTableRegistryV6544 = Object.freeze({
+    version:VERSION_V6544,
+    register:registerV6544,
+    registerMany:registerManyV6544,
+    unregister:unregisterV6544,
+    get:getV6544,
+    list:listV6544,
+    render:renderV6544,
+    renderAll:renderAllV6544,
+    refresh:refreshV6544,
+    unmount:unmountV6544,
+    destroy:unmountV6544,
+    instance:instanceV6544,
+    status:statusV6544,
+    audit:auditV6544
+  });
+
+  document.dispatchEvent(new CustomEvent('cdaSharedTableRegistryReadyV6544'));
+  if (window.cdaSharedTableDefinitionsV6544 && typeof window.cdaSharedTableDefinitionsV6544.scheduleRegistration === 'function') {
+    window.cdaSharedTableDefinitionsV6544.scheduleRegistration();
+  }
+})();
+</script>

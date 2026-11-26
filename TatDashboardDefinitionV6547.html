@@ -1,0 +1,233 @@
+<!-- TatDashboardDefinitionV6547.html
+Version: v6.581
+Date: 2026-07-31
+Purpose: Declarative TAT layout with per-component feature configuration for the shared feature runtime.
+-->
+<script id="cdaTatDashboardDefinitionControllerV6547">
+(function installTatDashboardDefinitionV6547(){
+  'use strict';
+
+  if (window.cdaTatDashboardDefinitionV6547 && window.cdaTatDashboardDefinitionV6547.version === 'v6.581') return;
+
+  const platform = window.cdaDashboardPlatformV6547;
+  const adapter = window.cdaTatDashboardAdapterV6547;
+  const productTable = window.cdaTatProductTableV6562;
+  const layout = window.cdaTatDashboardLayoutV6563;
+  if (!platform || !adapter || !productTable || !layout) {
+    throw new Error('TAT definition requires the registry, adapter, product table, and layout service.');
+  }
+
+  const CHART_FEATURES = ['columns','popout','reset','more','exportCurrent','exportAll'];
+  const TABLE_FEATURES = ['columns','columnWidths','popout','reset','more','exportCurrent','exportAll'];
+  const TABLE_OPTIONS = {
+    reset:{adapterMethod:'reset'},
+    exportAll:{adapterMethod:'exportAll'}
+  };
+  const CHART_OPTIONS = {
+    columns:{adapterMethod:'openColumns'},
+    reset:{adapterMethod:'reset'},
+    exportCurrent:{adapterMethod:'exportCurrent'},
+    exportAll:{adapterMethod:'exportAll'}
+  };
+  const PERFORMANCE_OPTIONS = Object.assign({},CHART_OPTIONS);
+  const COLLAPSE_OPTIONS = {defaultCollapsed:false};
+  const WIDTH_BASE_V6581 = {
+    absoluteMin:48,absoluteMax:720,numericMin:58,numericMax:82,
+    textMin:88,textMax:150,firstColumnMin:132,firstColumnMax:720,fallbackWidth:560
+  };
+  function widthOptionsV6581(overrides){
+    return Object.assign({},WIDTH_BASE_V6581,overrides || {});
+  }
+
+  function optionsV6579(base,extra){
+    return Object.assign({},base || {},extra || {});
+  }
+
+  function tableV6547(bodyId,headers,extraClass){
+    const cells = headers.map(function(header,index){
+      const field = header.field || String(header.label || ('column-' + String(index + 1))).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      const role = header.role === 'extended' ? 'extended' : 'standard';
+      return '<th' + (header.numeric ? ' class="num"' : '') + ' data-cda-field="' + platform.util.escapeHtml(field) + '" data-cda-column-role="' + role + '">' + platform.util.escapeHtml(header.label) + '</th>';
+    }).join('');
+    return '<div class="remakeTableWrap ' + platform.util.escapeHtml(extraClass || '') + '"><table data-cda-column-widths-pending-v6581="true" class="tatTableV6509 remakeTable">' +
+      '<thead><tr>' + cells + '</tr></thead><tbody id="' + platform.util.escapeHtml(bodyId) + '"></tbody></table></div>';
+  }
+
+  const TAT_METRIC_HEADERS = [
+    {label:'Sold Units',numeric:true},{label:'Remake Units',numeric:true},
+    {label:'Remake %',numeric:true},{label:'Avg TAT',numeric:true},
+    {label:'OTP',numeric:true},{label:'Avg Days Late',numeric:true}
+  ];
+
+  const components = [
+    {
+      key:'monthly',title:'Monthly TAT Comparison',kind:'chart',chartKey:'monthly',targetId:'tatMonthlyChartV6509',
+      features:CHART_FEATURES.slice(),featureOptions:optionsV6579(CHART_OPTIONS),
+      renderBody:function(){ return '<div class="tatChartV6509 remakeTrendCanvasWrapV6230"><canvas id="tatMonthlyChartV6509"></canvas></div>'; }
+    },
+    {
+      key:'department',title:'Department Summary',kind:'table',tableKey:'tatDepartment',targetId:'tatDepartmentTableV6509',
+      features:TABLE_FEATURES.slice(),featureOptions:optionsV6579(TABLE_OPTIONS,{columnWidths:widthOptionsV6581({firstColumnMin:140})}),
+      renderBody:function(){
+        return tableV6547('tatDepartmentTableV6509',[{label:'Department'}].concat(TAT_METRIC_HEADERS),'tatDepartmentTableWrapV6563');
+      }
+    },
+    {
+      key:'performance',title:'TAT Performance',kind:'chart',chartKey:'distribution',targetId:'tatDistributionChartV6509',
+      tableKey:'tatLate',tableIds:['tatLateTableV6509'],secondaryComponentKeys:['distribution','late'],
+      features:CHART_FEATURES.concat(['columnWidths']),
+      featureOptions:optionsV6579(PERFORMANCE_OPTIONS,{columnWidths:widthOptionsV6581({firstColumnMin:180,fallbackWidth:520,label:'Reset Promise column widths'})}),
+      renderHeaderControls:function(){ return layout.headerMarkup(); },
+      renderBody:function(){
+        return '<div class="tatPerformanceViewsV6565">' +
+          '<section class="tatPerformanceViewV6565" data-tat-performance-view-v6565="distribution" aria-label="TAT-day distribution">' +
+            '<div id="tatDistributionSubV6509" class="tatSrOnlyV6513">Percent of eligible cases by business-day bucket</div>' +
+            '<div class="tatPerformanceChartPanelV6565"><div class="tatChartV6509 remakeTrendCanvasWrapV6230">' +
+              '<canvas id="tatDistributionChartV6509"></canvas></div></div>' +
+          '</section>' +
+          '<section class="tatPerformanceViewV6565" data-tat-performance-view-v6565="promise" aria-label="Promise performance" hidden>' +
+            '<div class="tatPromiseTablePanelV6565">' +
+              tableV6547('tatLateTableV6509',[
+                {label:'Performance'},{label:'Cases',numeric:true},{label:'Share',numeric:true}
+              ],'tatPromiseTableWrapV6565') +
+            '</div>' +
+          '</section>' +
+        '</div>';
+      }
+    },
+    {
+      key:'product',title:'Products',kind:'table',tableKey:'tatProduct',targetId:'tatProductTableV6562',
+      features:TABLE_FEATURES.slice(),featureOptions:optionsV6579(TABLE_OPTIONS,{columnWidths:widthOptionsV6581({firstColumnMin:160})}),
+      renderHeaderControls:function(){ return productTable.headerMarkup(); },
+      renderBody:function(){
+        return tableV6547('tatProductTableV6562',[{label:'Product'}].concat(TAT_METRIC_HEADERS),'tatProductTableWrapV6562');
+      }
+    },
+    {
+      key:'customer',title:'Customers',kind:'table',tableKey:'tatCustomer',targetId:'tatCustomerTableV6509',
+      cardId:'tatCustomerCardV6509',wide:true,collapseKey:'customers',
+      features:TABLE_FEATURES.concat(['collapse']),
+      featureOptions:optionsV6579(TABLE_OPTIONS,{columnWidths:widthOptionsV6581({firstColumnMin:180}),collapse:COLLAPSE_OPTIONS}),
+      renderBody:function(){
+        return '<div class="tatCollapsibleBodyV6509">' + tableV6547('tatCustomerTableV6509',[
+          {label:'Customer'},{label:'Cases',numeric:true},{label:'Sold Units',numeric:true},{label:'Remake Units',numeric:true},
+          {label:'Remake %',numeric:true},{label:'Avg TAT',numeric:true},{label:'OTP',numeric:true},{label:'Avg Days Late',numeric:true}
+        ],'tatCustomerTableWrapV6563') + '</div>';
+      }
+    },
+    {
+      key:'quality',title:'Data Quality & Coverage',kind:'table',tableKey:'tatQuality',targetId:'tatQualityTableV6509',
+      cardId:'tatQualityCardV6509',wide:true,collapseKey:'quality',summaryIds:['tatIssueSummaryV6509'],
+      features:TABLE_FEATURES.concat(['collapse']),
+      featureOptions:optionsV6579(TABLE_OPTIONS,{columnWidths:widthOptionsV6581({firstColumnMin:150,textMin:86,textMax:132}),collapse:COLLAPSE_OPTIONS}),
+      renderTitle:function(){
+        return '<div class="tatQualityTitleRowV6513"><div class="tatCardTitleV6509 remakeCardTitle">Data Quality &amp; Coverage</div>' +
+          '<div id="tatQualityCoverageV6513" class="tatQualityCoverageV6513"></div></div>';
+      },
+      renderBody:function(){
+        return '<div class="tatCollapsibleBodyV6509 tatQualityBodyV6509"><div id="tatIssueSummaryV6509" class="tatIssueSummaryV6509"></div>' +
+          tableV6547('tatQualityTableV6509',[
+            {label:'Issue'},{label:'Case'},{label:'Customer'},{label:'Departments'},{label:'Invoice Date'},{label:'Date In'},
+            {label:'TAT End'},{label:'TAT Days',numeric:true},{label:'Units',numeric:true},{label:'Remake Units',numeric:true}
+          ],'tatQualityTableWrapV6509') + '</div>';
+      }
+    }
+  ];
+
+  const kpiConfig = {
+    tabKey:'tat',
+    buttonId:'tatKpiChooserButtonV6528',
+    storageKey:'cdaTatKpiVisibility.v6528',
+    stripSelector:'#tatDashboardPageV6509 .tatKpisV6509',
+    items:[
+      {key:'avgTat',valueId:'tatKpiAvgV6509',label:'Average TAT'},
+      {key:'otp',valueId:'tatKpiOtpV6509',label:'On Time to Promise'},
+      {key:'avgLate',valueId:'tatKpiLateV6509',label:'Average Days Late'},
+      {key:'soldUnits',valueId:'tatKpi31V6509',label:'Sold Units'},
+      {key:'remakePct',valueId:'tatKpiRemakePctV6523',label:'Remake %'}
+    ]
+  };
+
+  function kpiMarkupV6547(){
+    return [
+      ['avgTat','Average TAT','tatKpiAvgV6509','tatKpiAvgSubV6509','Eligible cases'],
+      ['otp','On Time to Promise','tatKpiOtpV6509','tatKpiOtpSubV6509','Due-date eligible'],
+      ['avgLate','Average Days Late','tatKpiLateV6509','tatKpiLateSubV6509','Late cases only'],
+      ['soldUnits','Sold Units','tatKpi31V6509','tatKpi31SubV6509','Included units'],
+      ['remakePct','Remake %','tatKpiRemakePctV6523','tatKpiRemakePctSubV6523','Remake units / sold units']
+    ].map(function(item){
+      return '<div class="tatKpiV6509 remakeKpi" data-tat-kpi-key-v6528="' + item[0] + '"><div class="label">' + item[1] +
+        '</div><div id="' + item[2] + '" class="value">-</div><div id="' + item[3] + '" class="sub">' + item[4] + '</div></div>';
+    }).join('');
+  }
+
+  function renderLayoutV6547(context){
+    return '<div class="tatKpiStageV6509"><div class="remakeKpiAreaV6406 tatKpiAreaV6528">' +
+      '<div class="remakeKpiToolbarV6403"><button id="tatKpiChooserButtonV6528" class="remakeKpiChooserButtonV6403" type="button"' +
+      ' aria-label="Choose KPI cards" aria-haspopup="dialog" aria-expanded="false">⋮</button></div>' +
+      '<div class="tatKpisV6509 remakeKpisV6230">' + kpiMarkupV6547() + '</div></div><div id="tatStampV6509" class="tatStampV6509">Loading</div></div>' +
+      '<div class="tatShellV6509"><div id="tatNoticeV6509" class="tatNoticeV6509"></div>' +
+      '<div id="tatCoverageV6509" class="tatCoverageV6509" hidden>' +
+      '<div class="tatCoverageMetricV6509"><span>Total Cases</span><strong id="tatCoverageCasesV6509">-</strong></div>' +
+      '<div class="tatCoverageMetricV6509"><span>Total Units</span><strong id="tatCoverageUnitsV6509">-</strong></div>' +
+      '<div class="tatCoverageMetricV6509"><span>TAT Eligible</span><strong id="tatCoverageEligibleV6509">-</strong></div>' +
+      '<div class="tatCoverageMetricV6509"><span>Coverage</span><strong id="tatCoveragePctV6509">-</strong></div>' +
+      '<div class="tatCoverageMetricV6509"><span>Excluded Cases</span><strong id="tatCoverageExcludedV6509">-</strong></div>' +
+      '<div id="tatCoverageNoteV6509" class="tatCoverageNoteV6509"></div></div>' +
+      '<div id="tatPillsV6509" class="tatPillsV6509"></div><div class="tatGridV6509 remakeGridV6230">' +
+      components.filter(function(component){ return !component.collapseKey; }).map(function(component){ return context.renderComponent(component.key); }).join('') + '</div>' +
+      '<div class="cdaDashboardAccordionStackV6681" data-cda-dashboard-accordion-stack-v6681="true">' +
+      components.filter(function(component){ return !!component.collapseKey; }).map(function(component){ return context.renderComponent(component.key); }).join('') + '</div></div>';
+  }
+
+  function showTatLifecycleErrorV6681(error){
+    const message = error && error.message ? error.message : String(error || 'TAT data lifecycle failed.');
+    const notice = document.getElementById('tatNoticeV6509');
+    if (notice) {
+      notice.textContent = message;
+      notice.style.display = 'block';
+      notice.classList.add('error');
+    }
+    return false;
+  }
+
+  function ensureTatDataLifecycleV6681(){
+    if (typeof window.ensureTatDashboardDataV6681 !== 'function') {
+      return Promise.resolve(showTatLifecycleErrorV6681(new Error('TAT data owner is unavailable.')));
+    }
+    try {
+      const result = window.ensureTatDashboardDataV6681();
+      return result && typeof result.then === 'function'
+        ? result.catch(function(error){ return showTatLifecycleErrorV6681(error); })
+        : Promise.resolve(result !== false);
+    } catch (error) {
+      return Promise.resolve(showTatLifecycleErrorV6681(error));
+    }
+  }
+
+  window.cdaTatDashboardDefinitionV6547 = {
+    version:'v6.581',
+    key:'tat',
+    pageId:'tatDashboardPageV6509',
+    tabButtonId:'tatTabBtnV6509',
+    pageClass:'tabContent cleanRemakeV6230',
+    adapter:adapter,
+    components:components,
+    renderLayout:renderLayoutV6547,
+    onActivate:function(){
+      const tatState = window.cdaTatStateV6509;
+      if (tatState && tatState.loaded) return true;
+      return ensureTatDataLifecycleV6681();
+    },
+    beforeReplace:function(){ adapter.beforeReplace(); },
+    afterReplace:function(){
+      window.cdaDashboardKpiV6547.bind(kpiConfig);
+      adapter.afterReplace();
+      productTable.afterReplace();
+      layout.afterReplace();
+      ensureTatDataLifecycleV6681();
+    },
+    kpiConfig:kpiConfig
+  };
+})();
+</script>

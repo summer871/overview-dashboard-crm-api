@@ -1,0 +1,102 @@
+<!-- RemakeDashboardBootstrapV6548.html
+Version: v6.681
+Date: 2026-08-25
+Purpose: Register and construct Remake once through the shared replace-mode renderer. No decorator, legacy bridge, reconciliation observer, or competing page constructor participates in Remake layout ownership.
+-->
+<script id="cdaRemakeDashboardBootstrapControllerV6548">
+(function installRemakeDashboardBootstrapV6548(){
+  'use strict';
+
+  if (window.__cdaRemakeDashboardBootstrapV6682) return;
+  window.__cdaRemakeDashboardBootstrapV6682 = true;
+
+  const platform = window.cdaDashboardPlatformV6547;
+  const renderer = window.cdaDashboardRendererV6547;
+  const definition = window.cdaRemakeDashboardDefinitionV6548;
+  const adapter = window.cdaRemakeDashboardAdapterV6548;
+  const tableSurfaces = window.cdaDashboardTableSurfacesV6586;
+  const layoutEditor = window.cdaDashboardLayoutEditorV6593;
+  if (!platform || !renderer || !definition || !adapter || !tableSurfaces || !layoutEditor) {
+    throw new Error('Remake bootstrap requires registry, shared renderer, Remake definition/adapter, table platform, and layout editor.');
+  }
+
+  platform.registerTab(definition);
+  const registrationAudit = platform.validateTab('remake');
+  if (!registrationAudit.ok) throw new Error('Remake definition is invalid:\n' + registrationAudit.errors.join('\n'));
+  if (definition.mountMode !== 'replace') throw new Error('Remake must use shared replace-mode rendering.');
+
+  let rendered = false;
+
+  function prepareTables(page){
+    const target = page || document.getElementById(definition.pageId);
+    if (!target) return false;
+    tableSurfaces.preparePage(target);
+    return true;
+  }
+
+  function render(){
+    if (rendered) return document.getElementById(definition.pageId);
+    const page = renderer.rebuild('remake');
+    if (!page) return null;
+    prepareTables(page);
+    rendered = true;
+    document.documentElement.setAttribute('data-cda-remake-single-construction-v6682','true');
+    if (typeof window.startRemakeDashboardRuntimeV6682 !== 'function') {
+      throw new Error('Remake runtime starter was not exported by DashboardMainScript.');
+    }
+    window.startRemakeDashboardRuntimeV6682();
+    return page;
+  }
+
+  function dependencyAudit(){
+    return {
+      renderer:!!renderer && renderer.version === 'v6.562',
+      definition:definition.version === 'v6.681' && definition.mountMode === 'replace',
+      adapter:adapter.version === 'v6.681',
+      tableSurfaces:!!tableSurfaces,
+      layoutEditor:!!layoutEditor,
+      runtimeStarter:typeof window.startRemakeDashboardRuntimeV6682 === 'function',
+      decoratorInactive:!window.cdaDashboardDecoratorV6548,
+      legacyBridgeInactive:!window.cdaRemakeLegacyBridgeV6554
+    };
+  }
+
+  function audit(){
+    const base = renderer.audit('remake');
+    const dependencies = dependencyAudit();
+    const page = document.getElementById(definition.pageId);
+    const catalog = window.cdaDashboardCatalogV6555 && typeof window.cdaDashboardCatalogV6555.audit === 'function'
+      ? window.cdaDashboardCatalogV6555.audit()
+      : {ok:false};
+    const tableAudit = tableSurfaces && typeof tableSurfaces.audit === 'function' ? tableSurfaces.audit(document) : {ok:false};
+    const allDependencies = Object.keys(dependencies).every(function(key){ return dependencies[key] === true; });
+    const oldStaticShellAbsent = !!page && page.querySelectorAll(':scope > .remakeShell').length === 0;
+    const canonicalPage = !!page && page.getAttribute('data-cda-dashboard-tab') === 'remake';
+    return Object.assign({},base,{
+      version:'v6.681',
+      mode:'shared-replace-single-render-owner',
+      dependencies:dependencies,
+      allRequiredDependenciesPresent:allDependencies,
+      canonicalPage:canonicalPage,
+      oldStaticShellAbsent:oldStaticShellAbsent,
+      componentCatalog:catalog,
+      tableSurfaceAudit:tableAudit,
+      ok:registrationAudit.ok && allDependencies && canonicalPage && oldStaticShellAbsent &&
+        base.noDuplicateIds && base.oneCardPerComponent && base.headerControlsOwned && catalog.ok && tableAudit.ok
+    });
+  }
+
+  function start(){ render(); }
+
+  window.cdaRemakeDashboardV6548 = Object.freeze({
+    version:'v6.681',
+    definition:definition,
+    render:render,
+    audit:audit,
+    dependencyAudit:dependencyAudit
+  });
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',start,{once:true});
+  else start();
+})();
+</script>

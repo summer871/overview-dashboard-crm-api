@@ -1,0 +1,37 @@
+<!-- SharedDashboardFeaturesV6547.html
+Version: v6.582
+Date: 2026-08-01
+Purpose: Declarative feature catalog executed by the shared configuration-driven feature runtime.
+-->
+<script id="cdaSharedDashboardFeaturesControllerV6547">
+(function installSharedDashboardFeaturesV6547(){
+  'use strict';
+
+  const platform = window.cdaDashboardPlatformV6547;
+  const theme = window.cdaDashboardThemeV6549;
+  const runtime = window.cdaDashboardFeatureRuntimeV6579;
+  if (!platform || !theme || !runtime) {
+    throw new Error('Dashboard registry, theme, and feature runtime must load before features.');
+  }
+  if (window.CDA_DASHBOARD_FEATURES_VERSION === 'v6.582') return;
+
+  function register(definition){
+    platform.registerFeature(Object.assign({},definition,{
+      run:function(context){ return runtime.run(definition.key,context); }
+    }));
+  }
+
+  register({key:'comparePriorYear',placement:'toolbar',order:10,label:'Prior year',title:'Compare with the previous year'});
+  register({key:'year',placement:'toolbar',order:15,label:'Year',title:'Choose reporting year'});
+  register({key:'columns',placement:'toolbar',order:20,label:'Columns',title:'Choose visible content'});
+  register({key:'columnWidths',placement:'service',order:5,label:'Column widths',title:'Resize and restore table column widths'});
+  register({key:'popout',placement:'toolbar',order:30,icon:'popout',title:'Open this live component in a separate window',iconOnly:true});
+  register({key:'reset',placement:'toolbar',order:40,icon:'reset',title:'Reset this component',iconOnly:true});
+  register({key:'more',placement:'toolbar',order:50,icon:'more',title:'More actions',iconOnly:true,appearance:'plain',ariaHasPopup:'menu'});
+  register({key:'collapse',placement:'title',order:10,icon:'collapse',title:'Collapse or expand this component',iconOnly:true});
+  register({key:'exportCurrent',placement:'menu',order:10,label:'Export current',title:'Export the current view'});
+  register({key:'exportAll',placement:'menu',order:20,label:'All data',title:'Export all matching data'});
+
+  window.CDA_DASHBOARD_FEATURES_VERSION = 'v6.582';
+})();
+</script>

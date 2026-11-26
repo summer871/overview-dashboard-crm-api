@@ -1,0 +1,413 @@
+<!-- SharedDashboardColumnsV6548.html
+Version: v6.582
+Date: 2026-08-01
+Purpose: One document-aware shared column-visibility service that persists through sorting, rerendering, and detached live components. Width behavior is owned separately by the opt-in columnWidths feature.
+-->
+<style id="cdaSharedDashboardColumnsStylesV6548">
+  .cdaDashboardColumnHiddenV6548 { display:none!important; }
+  .cdaDashboardColumnSectionV6548 + .cdaDashboardColumnSectionV6548 { margin-top:7px; padding-top:7px; border-top:1px solid var(--cda-color-divider); }
+  .cdaDashboardColumnSectionTitleV6548 { padding:3px 6px 5px; color:var(--cda-color-muted); font:800 9px/1.2 var(--cda-font-ui); text-transform:uppercase; letter-spacing:.05em; }
+  .cdaDashboardColumnFooterV6548 { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:6px; padding:7px 5px 2px; border-top:1px solid var(--cda-color-divider); margin-top:5px; }
+  .cdaDashboardColumnFooterV6548 button { width:auto!important; }
+</style>
+<script id="cdaSharedDashboardColumnsControllerV6548">
+(function installSharedDashboardColumnsV6548(){
+  'use strict';
+
+  const VERSION_V6581 = 'v6.582';
+  if (window.cdaDashboardColumnsV6548 &&
+      window.cdaDashboardColumnsV6548.version === VERSION_V6581) return;
+
+  const storageKeyV6581 = 'cdaDashboardColumns.v6550';
+  const contextsByDocumentV6581 = new WeakMap();
+  const observersByDocumentV6581 = new WeakMap();
+  const applyingDocumentsV6581 = new WeakSet();
+
+  function readStateV6581(){
+    try {
+      const value = JSON.parse(localStorage.getItem(storageKeyV6581) || '{}');
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function writeStateV6581(state){
+    try { localStorage.setItem(storageKeyV6581,JSON.stringify(state || {})); }
+    catch (error) {}
+  }
+
+  function documentFor(context){
+    return context && context.card && context.card.ownerDocument ||
+      context && context.button && context.button.ownerDocument ||
+      context && context.document ||
+      document;
+  }
+
+  function stateKeyV6581(context){
+    return String(context && context.tab && context.tab.key || 'dashboard') + ':' +
+      String(context && context.component && context.component.key || 'component');
+  }
+
+  function tableIdsV6581(component){
+    if (!component) return [];
+    if (Array.isArray(component.tableIds)) return component.tableIds.map(String).filter(Boolean);
+    if (component.targetId) return [String(component.targetId)];
+    return [];
+  }
+
+  function escapeIdV6581(id,doc){
+    const view = doc && doc.defaultView;
+    try {
+      if (view && view.CSS && typeof view.CSS.escape === 'function') return '#' + view.CSS.escape(String(id));
+      if (window.CSS && typeof window.CSS.escape === 'function') return '#' + window.CSS.escape(String(id));
+    } catch (error) {}
+    return '[id="' + String(id).replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"]';
+  }
+
+  function resolveTable(id,context){
+    const doc = documentFor(context);
+    const card = context && context.card;
+    let node = null;
+    if (card && card.querySelector) {
+      if (card.id === String(id)) node = card;
+      else {
+        try { node = card.querySelector(escapeIdV6581(id,doc)); }
+        catch (error) {}
+      }
+    }
+    if (!node && doc && typeof doc.getElementById === 'function') node = doc.getElementById(id);
+    if (!node && doc !== document) node = document.getElementById(id);
+    if (!node) return null;
+    return node.tagName === 'TABLE' ? node : node.closest ? node.closest('table') : null;
+  }
+
+  function cleanLabelV6581(value){
+    return String(value == null ? '' : value)
+      .replace(/[▲▼▴▾]/g,'')
+      .replace(/\s+/g,' ')
+      .trim() || 'Column';
+  }
+
+  function numericLabelV6581(label){
+    return /(?:^|\b)(?:cases?|counts?|units?|share|rate|percent|percentage|avg|average|days?|late|tat|otp|amount|total|sales|charges?|credits?|remakes?)(?:\b|%)/i.test(String(label || '')) || /%/.test(String(label || ''));
+  }
+
+  function domColumnsV6581(table){
+    if (!table || !table.tHead || !table.tHead.rows.length) return [];
+    const counts = Object.create(null);
+    return Array.from(table.tHead.rows[0].cells || []).map(function(cell,index){
+      const label = cleanLabelV6581(cell.textContent);
+      const explicit = String(cell.getAttribute('data-cda-field') || '').trim();
+      const base = explicit || label.toLowerCase();
+      counts[base] = (counts[base] || 0) + 1;
+      return {
+        field:explicit || base + '#' + counts[base],
+        label:label,
+        index:index,
+        hideable:index > 0,
+        numeric:cell.classList.contains('num') || numericLabelV6581(label),
+        visible:!cell.classList.contains('cdaDashboardColumnHiddenV6548')
+      };
+    });
+  }
+
+  function domHiddenV6581(context,tableId){
+    const state = readStateV6581();
+    const key = stateKeyV6581(context);
+    const componentState = state[key] || {};
+    if (!Object.prototype.hasOwnProperty.call(componentState,tableId)) {
+      try {
+        const legacy = JSON.parse(localStorage.getItem('cda.remake.columnVisibility.v6357') || '{}');
+        const values = legacy && legacy[tableId] && Array.isArray(legacy[tableId].hidden)
+          ? legacy[tableId].hidden.map(String)
+          : [];
+        if (values.length) {
+          componentState[tableId] = values;
+          state[key] = componentState;
+          writeStateV6581(state);
+        }
+        if (legacy && Object.prototype.hasOwnProperty.call(legacy,tableId)) {
+          delete legacy[tableId];
+          localStorage.setItem('cda.remake.columnVisibility.v6357',JSON.stringify(legacy));
+        }
+      } catch (error) {}
+    }
+    return new Set(Array.isArray(componentState[tableId]) ? componentState[tableId] : []);
+  }
+
+  function saveDomHiddenV6581(context,tableId,hidden){
+    const state = readStateV6581();
+    const key = stateKeyV6581(context);
+    state[key] = state[key] && typeof state[key] === 'object' ? state[key] : {};
+    state[key][tableId] = Array.from(hidden || []);
+    writeStateV6581(state);
+  }
+
+  function managedSourceV6581(context){
+    const component = context && context.component;
+    const api = window.cdaTable;
+    if (!component || !component.tableKey || !api ||
+        typeof api.config !== 'function' || !api.config(component.tableKey)) return null;
+    const config = api.config(component.tableKey);
+    const columns = typeof api.columns === 'function' ? api.columns(component.tableKey) : [];
+    return {
+      id:String(config.tableId || component.tableKey),
+      title:component.title || component.key,
+      type:'managed',
+      tableKey:component.tableKey,
+      table:resolveTable(config.tableId || component.targetId,context),
+      columns:columns.map(function(column,index){
+        return {
+          field:String(column.field),
+          label:String(column.title || column.label || column.field),
+          index:index,
+          hideable:column.hideable !== false,
+          numeric:column.numeric === true,
+          visible:column.visible !== false
+        };
+      })
+    };
+  }
+
+  function domSourcesV6581(context){
+    return tableIdsV6581(context.component).map(function(tableId){
+      const table = resolveTable(tableId,context);
+      if (!table) return null;
+      const hidden = domHiddenV6581(context,tableId);
+      return {
+        id:tableId,
+        title:table.getAttribute('aria-label') || context.component.title || tableId,
+        type:'dom',
+        table:table,
+        columns:domColumnsV6581(table).map(function(column){
+          return Object.assign({},column,{visible:!hidden.has(column.field)});
+        })
+      };
+    }).filter(Boolean);
+  }
+
+  function describe(context){
+    const managed = managedSourceV6581(context);
+    if (managed && managed.table) return [managed];
+    const dom = domSourcesV6581(context);
+    if (dom.length) return dom;
+    return managed ? [managed] : [];
+  }
+
+  function applyDomV6581(context,source){
+    if (!source || !source.table || !source.table.isConnected) return false;
+    const hidden = domHiddenV6581(context,source.id);
+    const columns = domColumnsV6581(source.table);
+    source.table.setAttribute('data-cda-dashboard-columns-key',stateKeyV6581(context));
+    source.table.setAttribute('data-cda-dashboard-columns-table-id',source.id);
+    Array.from(source.table.querySelectorAll('.columnHiddenV6357')).forEach(function(node){
+      node.classList.remove('columnHiddenV6357');
+    });
+    Array.from(source.table.rows || []).forEach(function(row){
+      Array.from(row.cells || []).forEach(function(cell,index){
+        const column = columns[index];
+        cell.classList.toggle('cdaDashboardColumnHiddenV6548',!!(column && hidden.has(column.field)));
+      });
+    });
+    Array.from(source.table.querySelectorAll('col')).forEach(function(col,index){
+      const column = columns[index];
+      col.classList.toggle('cdaDashboardColumnHiddenV6548',!!(column && hidden.has(column.field)));
+    });
+    source.columns = columns.map(function(column){
+      return Object.assign({},column,{visible:!hidden.has(column.field)});
+    });
+    return true;
+  }
+
+  function snapshotContextV6581(context,doc){
+    return {
+      tab:context.tab,
+      component:context.component,
+      adapter:context.adapter || context.tab && context.tab.adapter || {},
+      platform:context.platform || window.cdaDashboardPlatformV6547 || null,
+      document:doc,
+      window:doc.defaultView || window,
+      card:context.card && context.card.ownerDocument === doc ? context.card : null,
+      popover:context.popover || window.cdaDashboardPopoverV6547 || null
+    };
+  }
+
+  function rememberContextV6581(context){
+    if (!context || !context.tab || !context.component) return;
+    const doc = documentFor(context);
+    if (!doc) return;
+    let map = contextsByDocumentV6581.get(doc);
+    if (!map) {
+      map = new Map();
+      contextsByDocumentV6581.set(doc,map);
+    }
+    map.set(stateKeyV6581(context),snapshotContextV6581(context,doc));
+    observeDocumentV6581(doc);
+  }
+
+  function applyContextV6581(context,remember){
+    if (!context || !context.component) return false;
+    if (remember !== false) rememberContextV6581(context);
+    let applied = false;
+    describe(context).forEach(function(source){
+      if (source.type === 'dom') applied = applyDomV6581(context,source) || applied;
+    });
+    return applied;
+  }
+
+  function apply(context){ return applyContextV6581(context,true); }
+  function refresh(context){ return applyContextV6581(context,true); }
+
+  function refreshDocumentV6581(doc){
+    if (!doc || applyingDocumentsV6581.has(doc)) return;
+    const view = doc.defaultView;
+    if (view && view.closed) return;
+    const map = contextsByDocumentV6581.get(doc);
+    if (!map) return;
+    applyingDocumentsV6581.add(doc);
+    try { map.forEach(function(context){ applyContextV6581(context,false); }); }
+    finally { applyingDocumentsV6581.delete(doc); }
+  }
+
+  function observeDocumentV6581(doc){
+    if (!doc || observersByDocumentV6581.has(doc)) return;
+    const view = doc.defaultView || window;
+    if (!doc.body || !view.MutationObserver) return;
+    const observer = new view.MutationObserver(function(records){
+      const relevant = records.some(function(record){ return record.type === 'childList'; });
+      if (relevant) refreshDocumentV6581(doc);
+    });
+    observer.observe(doc.body,{childList:true,subtree:true});
+    observersByDocumentV6581.set(doc,observer);
+    doc.addEventListener('cdaTableRendered',function(){ refreshDocumentV6581(doc); });
+  }
+
+  function emitChangedV6581(context){
+    const doc = documentFor(context);
+    try {
+      doc.dispatchEvent(new (doc.defaultView || window).CustomEvent('cdaDashboardColumnsChanged',{
+        detail:{context:snapshotContextV6581(context,doc),stateKey:stateKeyV6581(context)}
+      }));
+    } catch (error) {}
+  }
+
+  function setVisible(context,sourceId,field,visible){
+    const source = describe(context).find(function(item){ return item.id === sourceId; });
+    if (!source) return false;
+    if (source.type === 'managed') {
+      if (!window.cdaTable || typeof window.cdaTable.toggleColumn !== 'function') return false;
+      window.cdaTable.toggleColumn(source.tableKey,field,visible);
+      applyContextV6581(context,true);
+      emitChangedV6581(context);
+      return true;
+    }
+    const hidden = domHiddenV6581(context,source.id);
+    if (visible) hidden.delete(field); else hidden.add(field);
+    saveDomHiddenV6581(context,source.id,hidden);
+    applyContextV6581(context,true);
+    emitChangedV6581(context);
+    return true;
+  }
+
+  function showAll(context){
+    describe(context).forEach(function(source){
+      if (source.type === 'managed' && window.cdaTable && typeof window.cdaTable.resetColumns === 'function') {
+        window.cdaTable.resetColumns(source.tableKey);
+      }
+      if (source.type === 'dom') saveDomHiddenV6581(context,source.id,new Set());
+    });
+    applyContextV6581(context,true);
+    emitChangedV6581(context);
+    return true;
+  }
+
+  function open(context){
+    if (!context || !context.component || !context.popover) return false;
+    rememberContextV6581(context);
+    if (context.popover.isOpenFor(context.button)) {
+      context.popover.close();
+      return true;
+    }
+    const sources = describe(context);
+    if (!sources.length) return false;
+    const panel = context.popover.open(context.button,{label:'Choose visible columns',title:'Columns'});
+    if (!panel) return false;
+    const doc = panel.ownerDocument || documentFor(context);
+    sources.forEach(function(source){
+      const section = doc.createElement('div');
+      section.className = 'cdaDashboardColumnSectionV6548';
+      if (sources.length > 1) {
+        const heading = doc.createElement('div');
+        heading.className = 'cdaDashboardColumnSectionTitleV6548';
+        heading.textContent = source.title;
+        section.appendChild(heading);
+      }
+      source.columns.forEach(function(column){
+        const label = doc.createElement('label');
+        const input = doc.createElement('input');
+        const text = doc.createElement('span');
+        input.type = 'checkbox';
+        input.checked = column.visible;
+        input.disabled = !column.hideable;
+        input.addEventListener('change',function(){
+          const current = describe(context).find(function(item){ return item.id === source.id; });
+          const visibleCount = current
+            ? current.columns.filter(function(item){ return item.visible; }).length
+            : 0;
+          if (!input.checked && visibleCount <= 1) {
+            input.checked = true;
+            return;
+          }
+          setVisible(context,source.id,column.field,input.checked);
+        });
+        text.textContent = column.label;
+        label.append(input,text);
+        section.appendChild(label);
+      });
+      panel.appendChild(section);
+    });
+    const footer = doc.createElement('div');
+    footer.className = 'cdaDashboardColumnFooterV6548';
+    const show = doc.createElement('button');
+    show.type = 'button';
+    show.textContent = 'Show all';
+    show.addEventListener('click',function(){ showAll(context); context.popover.close(); });
+    const widths = window.cdaDashboardColumnWidthsV6581;
+    const resetWidths = doc.createElement('button');
+    resetWidths.type = 'button';
+    resetWidths.textContent = 'Reset widths';
+    resetWidths.hidden = !((context.component.features || []).indexOf('columnWidths') >= 0 &&
+      widths && typeof widths.reset === 'function');
+    resetWidths.addEventListener('click',function(){
+      if (widths && typeof widths.reset === 'function') widths.reset(context);
+      context.popover.close();
+    });
+    const done = doc.createElement('button');
+    done.type = 'button';
+    done.textContent = 'Done';
+    done.addEventListener('click',function(){ context.popover.close(); });
+    footer.append(show,resetWidths,done);
+    panel.appendChild(footer);
+    context.popover.position();
+    applyContextV6581(context,true);
+    return true;
+  }
+
+  window.cdaDashboardColumnsV6548 = Object.freeze({
+    version:VERSION_V6581,
+    mode:'shared-visibility-only-rerender-safe',
+    open:open,
+    apply:apply,
+    refresh:refresh,
+    reset:showAll,
+    describe:describe,
+    setVisible:setVisible,
+    showAll:showAll,
+    resolveTable:resolveTable,
+    documentFor:documentFor
+  });
+
+  observeDocumentV6581(document);
+})();
+</script>

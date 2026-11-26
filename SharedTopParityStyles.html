@@ -1,0 +1,873 @@
+<!-- SharedTopParityStyles.html
+Version: v6.635
+Date: 2026-08-05
+Purpose: Own the shared Remake/TAT top-filter presentation and Remake cascading dashboard-filter inventories.
+-->
+<style id="cdaSharedTopParityV6527Styles">
+  :root{
+    --cda-top-control-height-v6527:32px;
+    --cda-top-control-gap-v6527:5px;
+  }
+
+  /* One visual component standard for both Remake and TAT top controls. */
+  #remakeTabFilterHostV6337,
+  #tatTabFilterHostV6509{
+    display:flex!important;
+    flex:0 0 auto!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:var(--cda-top-control-gap-v6527)!important;
+    width:max-content!important;
+    min-width:max-content!important;
+    max-width:none!important;
+    height:100%!important;
+    margin-left:auto!important;
+    white-space:nowrap!important;
+    overflow:visible!important;
+    position:relative!important;
+    z-index:10020!important;
+  }
+  #remakeTabFilterHostV6337[hidden],
+  #tatTabFilterHostV6509[hidden]{display:none!important;}
+
+  #remakeTabFilterHostV6337 .remakeFilterBarV6230,
+  #tatTabFilterHostV6509 .remakeFilterBarV6230{
+    display:flex!important;
+    flex:0 0 auto!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:var(--cda-top-control-gap-v6527)!important;
+    width:max-content!important;
+    min-width:max-content!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    grid-template-columns:none!important;
+  }
+
+  #remakeTabFilterHostV6337 .remakeFilter,
+  #tatTabFilterHostV6509 .remakeFilter{
+    display:block!important;
+    flex:0 0 auto!important;
+    width:max-content!important;
+    min-width:var(--cda-default-filter-width-v6527,72px)!important;
+    max-width:none!important;
+    height:var(--cda-top-control-height-v6527)!important;
+    min-height:var(--cda-top-control-height-v6527)!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:0!important;
+    background:transparent!important;
+    box-shadow:none!important;
+    position:relative!important;
+    overflow:visible!important;
+  }
+  #remakeTabFilterHostV6337 [data-filter-kind="year"],
+  #tatTabFilterHostV6509 [data-filter-kind="year"]{--cda-default-filter-width-v6527:82px;}
+  #remakeTabFilterHostV6337 [data-filter-kind="department"],
+  #tatTabFilterHostV6509 [data-filter-kind="department"]{--cda-default-filter-width-v6527:119px;}
+  #remakeTabFilterHostV6337 [data-filter-kind="product"],
+  #tatTabFilterHostV6509 [data-filter-kind="product"]{--cda-default-filter-width-v6527:100px;}
+  #remakeTabFilterHostV6337 [data-filter-kind="productGroup"],
+  #tatTabFilterHostV6509 [data-filter-kind="productGroup"]{--cda-default-filter-width-v6527:90px;}
+  #remakeTabFilterHostV6337 [data-filter-kind="customer"],
+  #tatTabFilterHostV6509 [data-filter-kind="customer"]{--cda-default-filter-width-v6527:108px;}
+  #remakeTabFilterHostV6337 [data-filter-kind="reason"],
+  #tatTabFilterHostV6509 [data-filter-kind="reason"]{--cda-default-filter-width-v6527:98px;}
+
+  #remakeTabFilterHostV6337 .remakeDropdownButtonV6245,
+  #tatTabFilterHostV6509 .remakeDropdownButtonV6245{
+    display:block!important;
+    width:max-content!important;
+    min-width:100%!important;
+    max-width:none!important;
+    height:var(--cda-top-control-height-v6527)!important;
+    min-height:var(--cda-top-control-height-v6527)!important;
+    box-sizing:border-box!important;
+    border:1px solid #cbd5e1!important;
+    border-radius:7px!important;
+    background:#fff!important;
+    color:#202124!important;
+    font:800 11px/1 Roboto,Arial,sans-serif!important;
+    padding:0 26px 0 9px!important;
+    text-align:left!important;
+    cursor:pointer!important;
+    position:relative!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    white-space:nowrap!important;
+    box-shadow:none!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownButtonV6245::after,
+  #tatTabFilterHostV6509 .remakeDropdownButtonV6245::after{
+    content:'▾'!important;
+    position:absolute!important;
+    right:8px!important;
+    top:50%!important;
+    transform:translateY(-50%)!important;
+    color:#475467!important;
+    font-size:11px!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownButtonV6245:hover,
+  #tatTabFilterHostV6509 .remakeDropdownButtonV6245:hover,
+  #remakeTabFilterHostV6337 .remakeDropdownButtonV6245.active,
+  #tatTabFilterHostV6509 .remakeDropdownButtonV6245.active{
+    border-color:#94a3b8!important;
+    background:#f8fafc!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownButtonV6245.active,
+  #tatTabFilterHostV6509 .remakeDropdownButtonV6245.active{
+    box-shadow:0 0 0 2px rgba(37,99,235,.10)!important;
+  }
+
+  /* Identical dropdown surface and contents. Positioning remains view-safe. */
+  #remakeTabFilterHostV6337 .remakeDropdownPanelV6245,
+  #tatTabFilterHostV6509 .remakeDropdownPanelV6245{
+    display:none;
+    width:360px!important;
+    min-width:320px!important;
+    max-width:min(420px,calc(100vw - 16px))!important;
+    max-height:min(430px,calc(100vh - 16px))!important;
+    background:#fff!important;
+    border:1px solid #cbd5df!important;
+    border-radius:10px!important;
+    box-shadow:0 18px 38px rgba(16,24,40,.24)!important;
+    z-index:10040!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+  #remakeTabFilterHostV6337 [data-filter-kind="year"] .remakeDropdownPanelV6245,
+  #tatTabFilterHostV6509 [data-filter-kind="year"] .remakeDropdownPanelV6245{width:300px!important;min-width:280px!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownPanelV6245.open,
+  #tatTabFilterHostV6509 .remakeDropdownPanelV6245.open{display:flex!important;flex-direction:column!important;}
+
+  #remakeTabFilterHostV6337 .remakeDropdownHeaderV6245,
+  #tatTabFilterHostV6509 .remakeDropdownHeaderV6245{
+    display:flex!important;
+    flex:0 0 auto!important;
+    align-items:center!important;
+    gap:6px!important;
+    padding:7px!important;
+    border-bottom:1px solid #e5e7eb!important;
+    background:#f8fafc!important;
+    overflow:visible!important;
+  }
+  #remakeTabFilterHostV6337 .remakeVisibleToggleV6502,
+  #tatTabFilterHostV6509 .remakeVisibleToggleV6502{
+    display:inline-flex!important;
+    align-items:center!important;
+    gap:6px!important;
+    width:auto!important;
+    min-height:29px!important;
+    margin:0!important;
+    padding:4px 9px!important;
+    border:1px solid #cbd5df!important;
+    border-radius:999px!important;
+    background:#fff!important;
+    color:#1f2937!important;
+    font:800 11px/1 Roboto,Arial,sans-serif!important;
+    cursor:pointer!important;
+    white-space:nowrap!important;
+    position:relative!important;
+  }
+  #remakeTabFilterHostV6337 .remakeVisibleToggleV6502 input,
+  #tatTabFilterHostV6509 .remakeVisibleToggleV6502 input{
+    width:16px!important;height:16px!important;margin:0!important;accent-color:#d89b00!important;cursor:pointer!important;
+  }
+  #remakeTabFilterHostV6337 .remakeVisibleToggleV6502:has(input:checked),
+  #tatTabFilterHostV6509 .remakeVisibleToggleV6502:has(input:checked),
+  #remakeTabFilterHostV6337 .remakeVisibleToggleV6502:has(input:indeterminate),
+  #tatTabFilterHostV6509 .remakeVisibleToggleV6502:has(input:indeterminate){
+    border-color:#f2c94c!important;background:#fff7d6!important;color:#7a4a00!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownHeaderV6245 button,
+  #tatTabFilterHostV6509 .remakeDropdownHeaderV6245 button{
+    border:1px solid #cbd5df!important;background:#fff!important;color:#1f2937!important;border-radius:999px!important;padding:6px 8px!important;font:800 11px/1 Roboto,Arial,sans-serif!important;cursor:pointer!important;white-space:nowrap!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownCountV6245,
+  #tatTabFilterHostV6509 .remakeDropdownCountV6245{
+    margin-left:auto!important;color:#667085!important;font:800 11px/1 Roboto,Arial,sans-serif!important;white-space:nowrap!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownSearchV6245,
+  #tatTabFilterHostV6509 .remakeDropdownSearchV6245{
+    flex:0 0 auto!important;width:calc(100% - 14px)!important;margin:7px!important;height:32px!important;border:1px solid #d5dae2!important;border-radius:7px!important;padding:0 9px!important;color:#202124!important;font:700 12px/1 Roboto,Arial,sans-serif!important;outline:none!important;box-sizing:border-box!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownSearchV6245:focus,
+  #tatTabFilterHostV6509 .remakeDropdownSearchV6245:focus{border-color:#94a3b8!important;box-shadow:0 0 0 3px rgba(37,99,235,.10)!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownListV6245,
+  #tatTabFilterHostV6509 .remakeDropdownListV6245{
+    flex:1 1 auto!important;min-height:120px!important;max-height:304px!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;scrollbar-gutter:stable both-edges!important;-webkit-overflow-scrolling:touch!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownRowV6245,
+  #tatTabFilterHostV6509 .remakeDropdownRowV6245{
+    display:grid!important;grid-template-columns:24px minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important;padding:7px 9px!important;border-bottom:1px solid #f1f3f5!important;cursor:pointer!important;user-select:none!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownRowV6245:hover,
+  #tatTabFilterHostV6509 .remakeDropdownRowV6245:hover,
+  #remakeTabFilterHostV6337 .remakeDropdownRowV6245.active,
+  #tatTabFilterHostV6509 .remakeDropdownRowV6245.active{background:#eef5ff!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownRowV6245 input,
+  #tatTabFilterHostV6509 .remakeDropdownRowV6245 input{pointer-events:none!important;width:16px!important;height:16px!important;accent-color:#d89b00!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownLabelV6245,
+  #tatTabFilterHostV6509 .remakeDropdownLabelV6245{overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font:800 12px/1.2 Roboto,Arial,sans-serif!important;color:#344054!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownMetaV6245,
+  #tatTabFilterHostV6509 .remakeDropdownMetaV6245{display:inline-flex!important;align-items:center!important;gap:6px!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownOnlyV6245,
+  #tatTabFilterHostV6509 .remakeDropdownOnlyV6245{border:1px solid #d5dae2!important;background:#fff!important;color:#475467!important;border-radius:999px!important;padding:4px 7px!important;font:900 10px/1 Roboto,Arial,sans-serif!important;cursor:pointer!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownEmptyV6245,
+  #tatTabFilterHostV6509 .remakeDropdownEmptyV6245{padding:14px 10px!important;color:#667085!important;font:800 12px/1.3 Roboto,Arial,sans-serif!important;}
+
+  #remakeTabFilterHostV6337 .remakeTabToolButtonV6337,
+  #tatTabFilterHostV6509 .remakeTabToolButtonV6337,
+  #remakeTabFilterHostV6337 .remakeCacheActionBarV6338 .remakeButton,
+  #tatTabFilterHostV6509 .remakeCacheActionBarV6338 .remakeButton{
+    flex:0 0 auto!important;
+    height:var(--cda-top-control-height-v6527)!important;
+    min-height:var(--cda-top-control-height-v6527)!important;
+    box-sizing:border-box!important;
+    border-radius:7px!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    cursor:pointer!important;
+    white-space:nowrap!important;
+    box-shadow:none!important;
+  }
+  #remakeTabFilterHostV6337 .remakeTabToolButtonV6337,
+  #tatTabFilterHostV6509 .remakeTabToolButtonV6337{
+    border:1px solid #cbd5e1!important;background:#fff!important;color:#334155!important;font:800 11px/1 Roboto,Arial,sans-serif!important;
+  }
+  #remakeTabFilterHostV6337 .remakeTabToolButtonV6337:hover,
+  #tatTabFilterHostV6509 .remakeTabToolButtonV6337:hover,
+  #remakeTabFilterHostV6337 .remakeTabToolButtonV6337[aria-expanded="true"],
+  #tatTabFilterHostV6509 .remakeTabToolButtonV6337[aria-expanded="true"]{background:#fff7d6!important;border-color:#f2c94c!important;color:#7a4a00!important;}
+  #remakeTabFilterHostV6337 .remakeTabSearchProxyV6337,
+  #tatTabFilterHostV6509 .remakeTabSearchProxyV6337{width:32px!important;min-width:32px!important;padding:0!important;}
+  #remakeTabFilterHostV6337 .remakeTabSearchProxyV6337 svg,
+  #tatTabFilterHostV6509 .remakeTabSearchProxyV6337 svg,
+  #remakeTabFilterHostV6337 #remakeTabViewsV6382 svg,
+  #tatTabFilterHostV6509 .tatSettingsButtonV6509 svg{width:16px!important;height:16px!important;fill:none!important;stroke:currentColor!important;stroke-width:2!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+  #remakeTabFilterHostV6337 .remakeTabResetV6337,
+  #tatTabFilterHostV6509 .remakeTabResetV6337{padding:0 10px!important;}
+  #remakeTabFilterHostV6337 .remakeCacheActionBarV6338,
+  #tatTabFilterHostV6509 .remakeCacheActionBarV6338{display:inline-flex!important;flex:0 0 auto!important;align-items:center!important;gap:var(--cda-top-control-gap-v6527)!important;width:max-content!important;min-width:max-content!important;}
+  #remakeTabFilterHostV6337 .remakeCacheActionBarV6338 .remakeButton,
+  #tatTabFilterHostV6509 .remakeCacheActionBarV6338 .remakeButton{border:1px solid #172033!important;padding:0 9px!important;background:#172033!important;color:#fff!important;gap:5px!important;font:900 11px/1 Roboto,Arial,sans-serif!important;}
+  #remakeTabFilterHostV6337 .remakeCacheActionBarV6338 .remakeButton.secondary,
+  #tatTabFilterHostV6509 .remakeCacheActionBarV6338 .remakeButton.secondary{background:#fff7d6!important;color:#7a4a00!important;border-color:#f2c94c!important;}
+  #remakeTabFilterHostV6337 .remakeCacheActionIconV6338,
+  #tatTabFilterHostV6509 .remakeCacheActionIconV6338{font:900 15px/1 Roboto,Arial,sans-serif!important;}
+
+  /* TAT receives the same KPI backdrop and card geometry as Remake. */
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiStageV6509{
+    position:relative!important;
+    width:calc(100% - 24px)!important;
+    max-width:1900px!important;
+    margin:8px auto 1px!important;
+    padding:8px 12px 9px!important;
+    background:#ebe9ed!important;
+    border:0!important;
+    border-bottom:1px solid rgba(196,205,216,.86)!important;
+    border-radius:0!important;
+    box-shadow:0 8px 18px rgba(20,32,42,.10)!important;
+    box-sizing:border-box!important;
+  }
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpisV6509{
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    align-items:stretch!important;
+    justify-content:center!important;
+    gap:14px!important;
+    width:100%!important;
+    max-width:1100px!important;
+    margin:0 auto!important;
+    padding:0 4px 4px!important;
+    box-sizing:border-box!important;
+  }
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509{
+    min-width:0!important;
+    min-height:68px!important;
+    padding:10px 12px!important;
+    background:#fff!important;
+    border:1px solid #d7dce2!important;
+    border-radius:8px!important;
+    box-shadow:0 1px 3px rgba(20,32,42,.14)!important;
+    box-sizing:border-box!important;
+  }
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .label{margin:0 0 5px!important;color:#667085!important;font:900 10.5px/1 Roboto,Arial,sans-serif!important;letter-spacing:.06em!important;text-transform:uppercase!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .value{margin:0!important;color:#172033!important;font:900 clamp(21px,1.55vw,28px)/1.04 Roboto,Arial,sans-serif!important;letter-spacing:normal!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .sub{display:flex!important;align-items:center!important;gap:6px!important;min-height:13px!important;margin:5px 0 0!important;color:#667085!important;font:800 10.5px/1.15 Roboto,Arial,sans-serif!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .sub .priorV6281{color:#667085!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .sub .deltaV6281{font-weight:900!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .sub .deltaV6281.good{color:#067647!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .sub .deltaV6281.bad{color:#b42318!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatKpiV6509 .sub .deltaV6281.neutral{color:#667085!important;}
+  #tatDashboardPageV6509.cleanRemakeV6230 .tatStampV6509{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}
+
+  /* Binary responsive mode: complete labels or icons; never squeezed text. */
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeFilter,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeFilter{width:32px!important;min-width:32px!important;max-width:32px!important;}
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeDropdownButtonV6245,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeDropdownButtonV6245{width:32px!important;min-width:32px!important;max-width:32px!important;padding:0!important;color:transparent!important;font-size:0!important;text-shadow:none!important;overflow:hidden!important;}
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeDropdownButtonV6245::after,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeDropdownButtonV6245::after{display:none!important;}
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeDropdownButtonV6245::before,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeDropdownButtonV6245::before{content:attr(data-cda-icon-v6527)!important;display:flex!important;align-items:center!important;justify-content:center!important;position:absolute!important;inset:0!important;color:#334155!important;font:900 14px/1 Arial,sans-serif!important;}
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeTabResetV6337,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeTabResetV6337,
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeCacheActionBarV6338 .remakeButton,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeCacheActionBarV6338 .remakeButton{width:32px!important;min-width:32px!important;max-width:32px!important;padding:0!important;gap:0!important;}
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeTabResetV6337,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeTabResetV6337{color:transparent!important;font-size:0!important;position:relative!important;}
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeTabResetV6337::before,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeTabResetV6337::before{content:'↺'!important;color:#334155!important;font:900 17px/1 Arial,sans-serif!important;}
+  #remakeTabFilterHostV6337.cdaIconToolbarV6527 .remakeCacheActionLabelV6338,
+  #tatTabFilterHostV6509.cdaIconToolbarV6527 .remakeCacheActionLabelV6338{display:none!important;}
+
+  @media(max-width:760px){
+    #tatDashboardPageV6509.cleanRemakeV6230 .tatKpisV6509{grid-template-columns:repeat(2,minmax(0,1fr))!important;max-width:none!important;gap:8px!important;}
+  }
+</style>
+
+<style id="cdaSharedDropdownFacetPolishV6631">
+  #remakeTabFilterHostV6337 .remakeDropdownPanelV6245,
+  #tatTabFilterHostV6509 .remakeDropdownPanelV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownPanelV6245{
+    width:334px!important;
+    min-width:300px!important;
+    max-width:min(380px,calc(100vw - 16px))!important;
+    max-height:min(360px,calc(100vh - 16px))!important;
+    border-radius:8px!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownHeaderV6245,
+  #tatTabFilterHostV6509 .remakeDropdownHeaderV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownHeaderV6245{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto auto!important;
+    grid-template-areas:"visible all none" "count count count"!important;
+    align-items:center!important;
+    gap:4px 5px!important;
+    padding:6px 7px!important;
+    overflow:visible!important;
+  }
+  #remakeTabFilterHostV6337 .remakeVisibleToggleV6502,
+  #tatTabFilterHostV6509 .remakeVisibleToggleV6502,
+  #remakeFactorPage.cleanRemakeV6230 .remakeVisibleToggleV6502{
+    grid-area:visible!important;
+    justify-self:start!important;
+    min-width:0!important;
+    max-width:100%!important;
+    min-height:26px!important;
+    padding:3px 7px!important;
+    gap:5px!important;
+    border-radius:6px!important;
+    font:700 10.5px/1 Roboto,Arial,sans-serif!important;
+    text-transform:none!important;
+    letter-spacing:0!important;
+  }
+  #remakeTabFilterHostV6337 .remakeVisibleToggleV6502 input,
+  #tatTabFilterHostV6509 .remakeVisibleToggleV6502 input,
+  #remakeFactorPage.cleanRemakeV6230 .remakeVisibleToggleV6502 input{width:14px!important;height:14px!important;}
+  #remakeTabFilterHostV6337 .remakeVisibleToggleV6502 span,
+  #tatTabFilterHostV6509 .remakeVisibleToggleV6502 span,
+  #remakeFactorPage.cleanRemakeV6230 .remakeVisibleToggleV6502 span{text-transform:none!important;letter-spacing:0!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownHeaderV6245 button[onclick*="clearRemakeMultiFilterV6245"],
+  #tatTabFilterHostV6509 .remakeDropdownHeaderV6245 button[onclick*="clearRemakeMultiFilterV6245"],
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownHeaderV6245 button[onclick*="clearRemakeMultiFilterV6245"]{grid-area:all!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownHeaderV6245 button[onclick*="selectNoneRemakeOptionsV6308"],
+  #tatTabFilterHostV6509 .remakeDropdownHeaderV6245 button[onclick*="selectNoneRemakeOptionsV6308"],
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownHeaderV6245 button[onclick*="selectNoneRemakeOptionsV6308"]{grid-area:none!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownHeaderV6245 button,
+  #tatTabFilterHostV6509 .remakeDropdownHeaderV6245 button,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownHeaderV6245 button{
+    min-height:26px!important;
+    padding:0 8px!important;
+    border-radius:6px!important;
+    justify-self:end!important;
+    font:700 10.5px/1 Roboto,Arial,sans-serif!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownCountV6245,
+  #tatTabFilterHostV6509 .remakeDropdownCountV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownCountV6245{
+    grid-area:count!important;
+    width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    padding:5px 1px 0!important;
+    border-top:1px solid #e5e7eb!important;
+    color:#667085!important;
+    font:700 10px/1.2 Roboto,Arial,sans-serif!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    box-sizing:border-box!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownSearchV6245,
+  #tatTabFilterHostV6509 .remakeDropdownSearchV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownSearchV6245{
+    margin:6px!important;
+    width:calc(100% - 12px)!important;
+    height:29px!important;
+    padding:0 8px!important;
+    border-radius:6px!important;
+    font:600 11px/1 Roboto,Arial,sans-serif!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownListV6245,
+  #tatTabFilterHostV6509 .remakeDropdownListV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownListV6245{min-height:96px!important;max-height:244px!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownRowV6245,
+  #tatTabFilterHostV6509 .remakeDropdownRowV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownRowV6245{
+    min-height:34px!important;
+    grid-template-columns:20px minmax(0,1fr) auto!important;
+    gap:6px!important;
+    padding:4px 7px!important;
+  }
+  #remakeTabFilterHostV6337 .remakeDropdownRowV6245 input,
+  #tatTabFilterHostV6509 .remakeDropdownRowV6245 input,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownRowV6245 input{width:14px!important;height:14px!important;margin:0!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownLabelV6245,
+  #tatTabFilterHostV6509 .remakeDropdownLabelV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownLabelV6245{font:700 10.75px/1.15 Roboto,Arial,sans-serif!important;}
+  #remakeTabFilterHostV6337 .remakeDropdownOnlyV6245,
+  #tatTabFilterHostV6509 .remakeDropdownOnlyV6245,
+  #remakeFactorPage.cleanRemakeV6230 .remakeDropdownOnlyV6245{padding:3px 6px!important;font:800 9px/1 Roboto,Arial,sans-serif!important;}
+  @media(max-width:430px){
+    #remakeTabFilterHostV6337 .remakeDropdownHeaderV6245,
+    #tatTabFilterHostV6509 .remakeDropdownHeaderV6245,
+    #remakeFactorPage.cleanRemakeV6230 .remakeDropdownHeaderV6245{
+      grid-template-columns:minmax(0,1fr) auto!important;
+      grid-template-areas:"visible all" "visible none" "count count"!important;
+    }
+  }
+</style>
+
+<script id="cdaRemakeCascadingFiltersControllerV6635">
+(function installCdaRemakeCascadingFiltersV6635(){
+  'use strict';
+  if(window.__cdaRemakeCascadingFiltersV6635)return;
+
+  const VERSION='v6.635';
+  const KINDS=['year','department','product','productGroup','customer','reason'];
+
+  function ready(){
+    return typeof populateFiltersV6230==='function'&&
+      typeof rowsForFiltersV6230==='function'&&
+      typeof fillSelectV6230==='function'&&
+      typeof filterValuesV6245==='function'&&
+      typeof excludedFilterValuesV6389==='function'&&
+      typeof renderDashboardV6230==='function'&&
+      typeof normalizedRowsV6230==='function';
+  }
+
+  function install(){
+    if(window.__cdaRemakeCascadingFiltersV6635||!ready())return false;
+    window.__cdaRemakeCascadingFiltersV6635=true;
+    window.CDA_REMAKE_CASCADING_FILTERS_VERSION=VERSION;
+
+    const originalRenderDropdownButtonV6635=renderDropdownButtonV6245;
+    const originalRenderDashboardV6635=renderDashboardV6230;
+    let lastRowsV6635=null;
+    let lastSignatureV6635='';
+    let rebuildingV6635=false;
+    let rebuildCountV6635=0;
+
+    function hardFilterSignatureV6635(){
+      return KINDS.map(function(kind){
+        return kind+':'+JSON.stringify(filterValuesV6245(kind))+'!'+JSON.stringify(excludedFilterValuesV6389(kind));
+      }).join('|');
+    }
+
+    function rowsForFacetV6635(rows,kind){
+      const hardKey='hard'+kind.charAt(0).toUpperCase()+kind.slice(1);
+      const options={months:false,crossFilters:false};
+      options[hardKey]=false;
+      return rowsForFiltersV6230(rows,options);
+    }
+
+    function optionsForFacetV6635(rows,kind){
+      const scoped=rowsForFacetV6635(rows,kind);
+      if(kind==='year'){
+        return normalizeOptionsV6245(Array.from(new Set(scoped.map(function(row){return row.year;}).filter(Boolean)))
+          .sort(function(left,right){return Number(right)-Number(left);})
+          .map(function(year){return{value:String(year),label:String(year)};}));
+      }
+      if(kind==='department'){
+        return normalizeOptionsV6245(Array.from(new Set(scoped.map(function(row){return row.department;}).filter(Boolean)))
+          .map(function(value){return{value:value,label:value};}));
+      }
+      if(kind==='product'){
+        return normalizeOptionsV6245(groupV6230(scoped,function(row){return row.productKey;},function(row){return row.productName;})
+          .map(function(row){return{value:row.key,label:row.label};}));
+      }
+      if(kind==='productGroup'){
+        return normalizeOptionsV6245(groupV6230(scoped,function(row){return row.productGroup||'Unassigned';},function(row){return row.productGroup||'Unassigned';})
+          .map(function(row){return{value:row.key,label:row.label};}));
+      }
+      if(kind==='customer'){
+        return normalizeOptionsV6245(groupV6230(scoped,function(row){return row.customerKey;},function(row){return customerLabelV6246(row);},function(group,row){
+          group.customerId=row.customerId||row.customerKey;
+          group.customerName=row.customerName||row.customerKey;
+          group.practiceName=row.practiceName||'';
+          group.customerDisplayLabel=customerLabelV6246(row);
+          if(row.customerActive===false)group.active=false;
+        }).map(function(row){return{value:row.key,label:row.label,active:row.active!==false};}));
+      }
+      return normalizeOptionsV6245(Array.from(new Set(scoped.filter(isRemakeV6230).map(function(row){return row.remakeReason||'Not specified';})))
+        .map(function(value){return{value:value,label:value};}));
+    }
+
+    function buildInventoryV6635(rows){
+      const inventory={};
+      KINDS.forEach(function(kind){inventory[kind]=optionsForFacetV6635(rows,kind);});
+      return inventory;
+    }
+
+    function reconcileKindV6635(kind,options){
+      const available=new Set((options||[]).map(function(option){return String(option.value);}));
+      const selected=filterValuesV6245(kind).map(String);
+      const noneSelected=selected.length===1&&selected[0]===REMAKE_NONE_FILTER_VALUE_V6308;
+      let changed=false;
+
+      if(!noneSelected&&selected.length){
+        const nextSelected=selected.filter(function(value){return available.has(value);});
+        if(nextSelected.length!==selected.length){
+          setFilterValuesV6245(kind,nextSelected);
+          changed=true;
+        }
+      }
+
+      if(!filterValuesV6245(kind).length){
+        const excluded=excludedFilterValuesV6389(kind).map(String);
+        if(excluded.length){
+          const nextExcluded=excluded.filter(function(value){return available.has(value);});
+          if(nextExcluded.length!==excluded.length){
+            setFilterExclusionsV6389(kind,nextExcluded);
+            changed=true;
+          }
+        }
+      }
+      return changed;
+    }
+
+    function applyInventoryV6635(inventory){
+      fillSelectV6230('remakeYearFilter','All years',inventory.year,uiV6230.filters.year);
+      fillSelectV6230('remakeDepartmentFilter','All departments',inventory.department,uiV6230.filters.department);
+      fillSelectV6230('remakeProductFilter','All products',inventory.product,uiV6230.filters.product);
+      uiV6230.filterOptionsV6245.productGroup=inventory.productGroup.slice();
+      renderDropdownButtonV6245('productGroup');
+      fillSelectV6230('remakeCustomerFilter','All customers',inventory.customer,uiV6230.filters.customer);
+      fillSelectV6230('remakeReasonFilter','All reasons',inventory.reason,uiV6230.filters.reason);
+    }
+
+    function renderDropdownButtonV6635(kind){
+      originalRenderDropdownButtonV6635(kind);
+      const meta=filterMetaV6245[kind];
+      if(!meta)return;
+      const count=idV6230(meta.countId);
+      if(!count)return;
+      const available=allOptionValuesForDropdownV6245(kind);
+      const availableSet=new Set(available);
+      const selected=Array.from(effectiveSelectionSetV6250(kind)).filter(function(value){return availableSet.has(String(value));});
+      const excluded=excludedFilterValuesV6389(kind).filter(function(value){return availableSet.has(String(value));});
+      const none=filterIsNoneV6308(kind);
+      if(none)count.textContent='None selected · '+available.length+' available';
+      else if(excluded.length)count.textContent=selected.length+' selected · '+excluded.length+' excluded · '+available.length+' available';
+      else if(filterValuesV6245(kind).length)count.textContent=selected.length+' selected · '+available.length+' available';
+      else count.textContent='All selected · '+available.length+' available';
+      count.title=count.textContent;
+    }
+
+    function populateFiltersV6635(rows,force){
+      const sourceRows=Array.isArray(rows)?rows:[];
+      const incomingSignature=hardFilterSignatureV6635();
+      if(!force&&lastRowsV6635===sourceRows&&lastSignatureV6635===incomingSignature&&uiV6230.filterOptionsV6245){
+        syncFilterControlsV6230();
+        return false;
+      }
+      if(rebuildingV6635)return false;
+
+      rebuildingV6635=true;
+      try{
+        let inventory=null;
+        let changed=false;
+        for(let pass=0;pass<4;pass+=1){
+          inventory=buildInventoryV6635(sourceRows);
+          changed=false;
+          KINDS.forEach(function(kind){if(reconcileKindV6635(kind,inventory[kind]))changed=true;});
+          if(!changed)break;
+        }
+        inventory=buildInventoryV6635(sourceRows);
+        applyInventoryV6635(inventory);
+        uiV6230.filterOptionRowsV6300=sourceRows;
+        uiV6230.filterFacetSignatureV6631=hardFilterSignatureV6635();
+        lastRowsV6635=sourceRows;
+        lastSignatureV6635=hardFilterSignatureV6635();
+        rebuildCountV6635+=1;
+        syncFilterControlsV6230();
+        writeLocalJsonV6230(FILTERS_KEY_V6230,uiV6230.filters);
+        writeLocalJsonV6230(FILTER_EXCLUSIONS_KEY_V6389,uiV6230.filterExclusionsV6389);
+        return true;
+      }finally{
+        rebuildingV6635=false;
+      }
+    }
+
+    function refreshBeforeRenderV6635(){
+      if(rebuildingV6635)return false;
+      let rows=[];
+      try{rows=normalizedRowsV6230();}catch(error){return false;}
+      return populateFiltersV6635(rows,false);
+    }
+
+    function renderDashboardV6635(){
+      refreshBeforeRenderV6635();
+      return originalRenderDashboardV6635.apply(this,arguments);
+    }
+    renderDashboardV6635.__cdaCascadingInventoryV6635=true;
+    renderDashboardV6635.__cdaPreviousV6635=originalRenderDashboardV6635;
+
+    renderDropdownButtonV6245=renderDropdownButtonV6635;
+    populateFiltersV6230=populateFiltersV6635;
+    renderDashboardV6230=renderDashboardV6635;
+    try{window.renderDropdownButtonV6245=renderDropdownButtonV6635;}catch(error){}
+    try{window.populateFiltersV6230=populateFiltersV6635;}catch(error){}
+    try{window.renderDashboardV6230=renderDashboardV6635;}catch(error){}
+
+    function polishHeaderV6635(root){
+      (root||document).querySelectorAll('.remakeDropdownHeaderV6245').forEach(function(header){
+        const allButton=header.querySelector('button[onclick*="clearRemakeMultiFilterV6245"]');
+        const noneButton=header.querySelector('button[onclick*="selectNoneRemakeOptionsV6308"]');
+        const visibleLabel=header.querySelector('.remakeVisibleToggleV6502 span');
+        if(allButton){allButton.textContent='All';allButton.title='Select every available option in the current focus';}
+        if(noneButton)noneButton.title='Select no options';
+        if(visibleLabel)visibleLabel.textContent='Visible';
+      });
+    }
+
+    polishHeaderV6635(document);
+    if(window.MutationObserver){
+      const observer=new MutationObserver(function(mutations){
+        mutations.forEach(function(mutation){
+          Array.from(mutation.addedNodes||[]).forEach(function(node){
+            if(node&&node.nodeType===1)polishHeaderV6635(node);
+          });
+        });
+      });
+      const host=document.querySelector('#remakeFactorPage,#remakeTabFilterHostV6337');
+      if(host)observer.observe(host,{childList:true,subtree:true});
+      window.__cdaRemakeCascadingFilterObserverV6635=observer;
+    }
+
+    window.cdaRemakeCascadingFiltersV6635=Object.freeze({
+      version:VERSION,
+      refresh:function(){return populateFiltersV6635(normalizedRowsV6230(),true);},
+      audit:function(){
+        const rows=normalizedRowsV6230();
+        const expected=buildInventoryV6635(rows);
+        const actual=uiV6230.filterOptionsV6245||{};
+        const counts={};
+        let ok=true;
+        KINDS.forEach(function(kind){
+          const expectedCount=(expected[kind]||[]).length;
+          const actualCount=(actual[kind]||[]).length;
+          counts[kind]={expected:expectedCount,actual:actualCount,synced:expectedCount===actualCount};
+          if(expectedCount!==actualCount)ok=false;
+        });
+        return{
+          version:VERSION,
+          hardSignature:hardFilterSignatureV6635(),
+          rebuildCount:rebuildCountV6635,
+          counts:counts,
+          softFiltersIgnored:true,
+          renderWrapped:!!(renderDashboardV6230&&renderDashboardV6230.__cdaCascadingInventoryV6635),
+          ok:ok
+        };
+      }
+    });
+
+    try{populateFiltersV6635(normalizedRowsV6230(),true);}catch(error){}
+    return true;
+  }
+
+  if(!install()){
+    const timer=window.setInterval(function(){if(install())window.clearInterval(timer);},250);
+    window.setTimeout(function(){window.clearInterval(timer);},12000);
+  }
+})();
+</script>
+<!-- v6.681 repair 4: shared owner for Remake/TAT fixed KPI stage and filter-pill rail placement. -->
+<style id="cdaSharedTopChromeV6681Styles">
+  @media (min-width:761px) {
+    #remakeFactorPage.cleanRemakeV6230[data-cda-shared-top-chrome-v6681="true"] .remakeShellV6230 > .remakeStickyTopV6245,
+    #tatDashboardPageV6509.cleanRemakeV6230[data-cda-shared-top-chrome-v6681="true"] > .tatKpiStageV6509 {
+      position:fixed!important;
+      top:var(--cda-shared-top-offset-v6681,34px)!important;
+      left:var(--cda-shared-top-left-v6681,0px)!important;
+      width:var(--cda-shared-top-width-v6681,100%)!important;
+      margin:0!important;
+      z-index:1200!important;
+      overflow:visible!important;
+      transform:none!important;
+      box-sizing:border-box!important;
+      isolation:isolate!important;
+    }
+
+    #remakeFactorPage.cleanRemakeV6230[data-cda-shared-top-chrome-v6681="true"] #remakePillsV6230,
+    #tatDashboardPageV6509.cleanRemakeV6230[data-cda-shared-top-chrome-v6681="true"] #tatPillsV6509 {
+      position:fixed!important;
+      top:var(--cda-shared-rail-top-v6681,0px)!important;
+      left:var(--cda-shared-top-left-v6681,0px)!important;
+      width:var(--cda-shared-top-width-v6681,100%)!important;
+      z-index:1201!important;
+    }
+
+    #remakeFactorPage.cleanRemakeV6230 .cdaSharedTopChromeSpacerV6681,
+    #tatDashboardPageV6509.cleanRemakeV6230 .cdaSharedTopChromeSpacerV6681 {
+      display:block!important;
+      width:100%!important;
+      min-height:var(--cda-shared-top-spacer-height-v6681,0px)!important;
+      height:var(--cda-shared-top-spacer-height-v6681,0px)!important;
+      margin:0!important;
+      padding:0!important;
+      pointer-events:none!important;
+    }
+  }
+
+  #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230,
+  #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 {
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    flex-wrap:wrap!important;
+    gap:7px!important;
+    min-width:0!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:5px 10px 7px!important;
+    background:#ebe9ed!important;
+    border:0!important;
+    border-bottom:1px solid rgba(15,23,42,.06)!important;
+    border-radius:0!important;
+    box-shadow:0 4px 10px rgba(15,23,42,.08)!important;
+    box-sizing:border-box!important;
+  }
+
+  #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230:empty,
+  #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509:empty {
+    display:none!important;
+    margin:0!important;
+    padding:0!important;
+  }
+
+  #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230 :is(.remakePillV6230,.cdaDashboardFilterPillV6681),
+  #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 :is(.remakePillV6230,.cdaDashboardFilterPillV6681) {
+    display:inline-flex!important;
+    align-items:center!important;
+    gap:6px!important;
+    min-height:24px!important;
+    max-width:min(390px,52vw)!important;
+    padding:3px 8px 3px 10px!important;
+    border:1px solid #efc84a!important;
+    border-radius:999px!important;
+    background:#fff4b8!important;
+    color:#664300!important;
+    box-shadow:0 1px 2px rgba(116,83,0,.12)!important;
+    font:800 10px/1.15 Roboto,Arial,sans-serif!important;
+  }
+
+  #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230 .cdaDashboardFilterPillTextV6681,
+  #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 .cdaDashboardFilterPillTextV6681 {
+    min-width:0!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+  }
+
+  #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230 :is(.remakePillV6230,.cdaDashboardFilterPillV6681) button,
+  #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 :is(.remakePillV6230,.cdaDashboardFilterPillV6681) button {
+    width:18px!important;
+    height:18px!important;
+    min-width:18px!important;
+    padding:0!important;
+    border:0!important;
+    border-radius:50%!important;
+    background:transparent!important;
+    color:#7a4a00!important;
+    font:900 14px/18px Arial,sans-serif!important;
+    cursor:pointer!important;
+  }
+
+  @media (max-width:760px) {
+    #remakeFactorPage.cleanRemakeV6230 .remakeShellV6230 > .remakeStickyTopV6245,
+    #tatDashboardPageV6509.cleanRemakeV6230 > .tatKpiStageV6509,
+    #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230,
+    #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 {
+      position:static!important;
+      top:auto!important;
+      left:auto!important;
+      width:auto!important;
+    }
+
+    #remakeFactorPage.cleanRemakeV6230 .cdaSharedTopChromeSpacerV6681,
+    #tatDashboardPageV6509.cleanRemakeV6230 .cdaSharedTopChromeSpacerV6681 {
+      display:none!important;
+    }
+
+    #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230,
+    #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 {
+      flex-wrap:nowrap!important;
+      overflow-x:auto!important;
+      overflow-y:hidden!important;
+      -webkit-overflow-scrolling:touch!important;
+      scrollbar-width:thin!important;
+    }
+
+    #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230 :is(.remakePillV6230,.cdaDashboardFilterPillV6681),
+    #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 :is(.remakePillV6230,.cdaDashboardFilterPillV6681) {
+      max-width:82vw!important;
+      flex:0 0 auto!important;
+    }
+  }
+</style>
+
+<style id="cdaSharedFilterEngineStylesV6681">
+  #remakeTabFilterHostV6337 .cdaDashboardFilterLabelV6681,
+  #tatTabFilterHostV6509 .cdaDashboardFilterLabelV6681 {
+    position:absolute!important;
+    width:1px!important;
+    height:1px!important;
+    padding:0!important;
+    margin:-1px!important;
+    overflow:hidden!important;
+    clip:rect(0,0,0,0)!important;
+    white-space:nowrap!important;
+    border:0!important;
+  }
+
+  #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230 .cdaDashboardFilterResetV6681,
+  #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 .cdaDashboardFilterResetV6681 {
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    min-height:24px!important;
+    padding:3px 10px!important;
+    border:1px solid #cbd5df!important;
+    border-radius:999px!important;
+    background:#fff!important;
+    color:#475467!important;
+    box-shadow:0 1px 2px rgba(15,23,42,.06)!important;
+    font:800 10px/1.15 Roboto,Arial,sans-serif!important;
+    cursor:pointer!important;
+    white-space:nowrap!important;
+  }
+
+  #remakeFactorPage.cleanRemakeV6230 #remakePillsV6230 .cdaDashboardFilterResetV6681:hover,
+  #tatDashboardPageV6509.cleanRemakeV6230 #tatPillsV6509 .cdaDashboardFilterResetV6681:hover {
+    border-color:#efc84a!important;
+    background:#fff7d6!important;
+    color:#7a4a00!important;
+  }
+</style>

@@ -1,0 +1,125 @@
+<!-- RemakeDashboardAdapterV6548.html
+Version: v6.681
+Date: 2026-08-25
+Purpose: Thin Remake adapter for the shared replace-mode dashboard renderer. It routes tab-local data/actions directly to Remake domain functions and contains no legacy DOM-provider bridge or decorator behavior.
+-->
+<script id="cdaRemakeDashboardAdapterControllerV6548">
+(function installRemakeDashboardAdapterV6548(){
+  'use strict';
+
+  if (window.cdaRemakeDashboardAdapterV6548 && window.cdaRemakeDashboardAdapterV6548.version === 'v6.681') return;
+
+  function card(context){
+    if (context && context.card) return context.card;
+    const component = context && context.component;
+    if (!component) return null;
+    const catalog = window.cdaDashboardCatalogV6555;
+    if (catalog && typeof catalog.resolveCard === 'function') {
+      const resolved = catalog.resolveCard('remake',component.key);
+      if (resolved) return resolved;
+    }
+    return component.cardId ? document.getElementById(component.cardId) : null;
+  }
+
+  function targetTable(component,context){
+    const owner = card(context);
+    const id = component && (component.targetId || component.tableIds && component.tableIds[0]);
+    if (!id) return owner && owner.querySelector('table');
+    const doc = owner && owner.ownerDocument || document;
+    const node = doc.getElementById(id);
+    return node && node.tagName === 'TABLE' ? node : node && node.closest ? node.closest('table') : null;
+  }
+
+  function getChart(context){
+    const component = context && context.component;
+    const canvasId = component && component.targetId;
+    if (!canvasId || !window.Chart) return null;
+    if (typeof window.Chart.getChart === 'function') return window.Chart.getChart(canvasId) || null;
+    return null;
+  }
+
+  function comparisonActive(component,context){
+    const table = targetTable(component,context);
+    return !!(table && table.classList.contains('compareColumnsV6301'));
+  }
+
+  function priorYearLabel(){ return String(new Date().getFullYear() - 1); }
+
+  function togglePriorYearComparison(context){
+    const component = context && context.component;
+    const key = component && (component.legacyKey || component.key);
+    if (!key || typeof window.toggleRemakeTableCompareV6297 !== 'function') return false;
+    window.toggleRemakeTableCompareV6297(key);
+    return true;
+  }
+
+  function openColumns(context){
+    return !!(window.cdaDashboardColumnsV6548 && typeof window.cdaDashboardColumnsV6548.open === 'function' &&
+      window.cdaDashboardColumnsV6548.open(context));
+  }
+
+  function popout(context){
+    return !!(window.cdaDashboardPopoutV6548 && typeof window.cdaDashboardPopoutV6548.open === 'function' &&
+      window.cdaDashboardPopoutV6548.open(context));
+  }
+
+  function reset(context){
+    const component = context && context.component;
+    if (!component) return false;
+    if (comparisonActive(component,context) && typeof window.toggleRemakeTableCompareV6297 === 'function') {
+      window.toggleRemakeTableCompareV6297(component.legacyKey || component.key);
+    }
+    if (typeof window.clearRemakeComponentV6230 === 'function') {
+      window.clearRemakeComponentV6230(component.legacyKey || component.key);
+      return true;
+    }
+    return false;
+  }
+
+  function exportCurrent(context){
+    const component = context && context.component;
+    if (!component || typeof window.exportRemakeComponentV6230 !== 'function') return false;
+    window.exportRemakeComponentV6230(component.legacyKey || component.key);
+    return true;
+  }
+
+  function exportAll(context){
+    const component = context && context.component;
+    if (!component || typeof window.exportRemakeAllDataV6399 !== 'function') return false;
+    window.exportRemakeAllDataV6399(component.legacyKey || component.key);
+    return true;
+  }
+
+  function beforeReplace(){
+    if (window.cdaDashboardPopoverV6547 && typeof window.cdaDashboardPopoverV6547.close === 'function') {
+      window.cdaDashboardPopoverV6547.close();
+    }
+    if (window.Chart && typeof window.Chart.getChart === 'function') {
+      const chart = window.Chart.getChart('remakeTrendChartV6230');
+      if (chart && typeof chart.destroy === 'function') {
+        try { chart.destroy(); } catch (error) {}
+      }
+    }
+    return true;
+  }
+
+  function afterReplace(){
+    return true;
+  }
+
+  window.cdaRemakeDashboardAdapterV6548 = Object.freeze({
+    version:'v6.681',
+    getChart:getChart,
+    openColumns:openColumns,
+    popout:popout,
+    reset:reset,
+    exportCurrent:exportCurrent,
+    exportAll:exportAll,
+    comparisonActive:comparisonActive,
+    priorYearLabel:priorYearLabel,
+    togglePriorYearComparison:togglePriorYearComparison,
+    beforeReplace:beforeReplace,
+    afterReplace:afterReplace
+  });
+})();
+</script>
