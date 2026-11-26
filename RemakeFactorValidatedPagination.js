@@ -324,7 +324,7 @@ function rebuildRemakeFactorValidatedMonthV1350(monthKey, options) {
   });
 }
 
-function refreshRemakeFactorValidatedSmartV1350(options) {
+function refreshRemakeFactorValidatedSmartV1350(options, includeDashboardPayload = true) {
   var opts = options || {};
   var props = PropertiesService.getScriptProperties();
   var startMs = Date.now();
@@ -380,7 +380,11 @@ function refreshRemakeFactorValidatedSmartV1350(options) {
     errorsThisRun: errors,
     generatedAt: new Date().toISOString()
   };
+  if (!includeDashboardPayload) response.dashboardPayloadIncluded = false;
   Logger.log(JSON.stringify(response, null, 2));
+
+  if (!includeDashboardPayload) return response;
+
   try {
     var cached = readRemakeFactorCache();
     if (cached && cached.detailRows) {
