@@ -665,13 +665,15 @@ function fetchRemakeFactorCasesSingleRange(config, token, verifiedV11Query) {
     warnings.push('Fetched ' + dateFilteredOut + ' overlap rows outside requested invoiceDate range ' + config.startDate + ' to ' + config.endDate + '; those rows were not included in the cache.');
   }
 
-  const needsDetail = filteredCases.filter(row => !Array.isArray(row.caseProducts) || !row.caseProducts.length);
+  const needsDetail = filteredCases.filter(row => receipt
+    ? !MagicTouchCrmClient.getJoinedCaseProducts(row).length
+    : !Array.isArray(row.caseProducts) || !row.caseProducts.length);
   const inlineCount = filteredCases.length - needsDetail.length;
   let detailCandidates = [];
 
-  if (config.detailStrategy === 'all') {
+  if (!receipt && config.detailStrategy === 'all') {
     detailCandidates = needsDetail;
-  } else if (config.detailStrategy === 'remakesOnly') {
+  } else if (!receipt && config.detailStrategy === 'remakesOnly') {
     detailCandidates = needsDetail.filter(isLikelyRemakeFactorCaseHeader);
   } else {
     detailCandidates = [];
@@ -707,7 +709,9 @@ function fetchRemakeFactorCasesSingleRange(config, token, verifiedV11Query) {
     }
   });
 
-  if (needsDetail.length) {
+  if (receipt && needsDetail.length) {
+    warnings.push('QueryCases returned ' + needsDetail.length + ' cases with no product lines. Case-level fallback rows were retained.');
+  } else if (needsDetail.length) {
     warnings.push('QueryCases returned ' + needsDetail.length + ' cases without inline caseProducts. Used detailStrategy=' + config.detailStrategy + '.');
   }
   if (config.detailStrategy === 'remakesOnly' && needsDetail.length) {
