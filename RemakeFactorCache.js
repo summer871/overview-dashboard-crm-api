@@ -585,7 +585,7 @@ function useOverviewCrmV11_(config) {
 }
 
 function scanOverviewCrmV11_(route, query, rows) {
-  const receipt = MagicTouchCrmClient.scanPages(route, query, function(batch, meta) {
+  const receipt = MagicTouchCrmClient.scanAdaptive(route, query, function(batch, meta) {
     if (meta.offset !== rows.length) throw new Error('OVERVIEW_CRM_OFFSET');
     batch.forEach(row => rows.push(row));
   });
